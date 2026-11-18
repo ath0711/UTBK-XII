@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Test Maker — UTBK Training</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <style>
+    .page { max-width: 1000px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 16px; }
+    input[type=number] { width: 100%; padding: 11px 12px; border: 1px solid #c9d0db; border-radius: 8px; font: inherit; }
+    textarea { width: 100%; min-height: 420px; font: 14px/1.5 ui-monospace, Menlo, Consolas, monospace; padding: 12px; border: 1px solid #c9d0db; border-radius: 8px; resize: vertical; }
+    .toggles { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 16px; }
+    .toggles label { display: flex; gap: 8px; align-items: center; font-size: 15px; }
+    pre.fmt { background: #f6f8fb; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-size: 13px; overflow: auto; white-space: pre-wrap; }
+    .errs { background: var(--bad-soft); border: 1px solid #f3b9b2; color: #8f2318; border-radius: 8px; padding: 10px 14px; font-size: 14px; }
+    .errs li { margin: 3px 0; }
+    .pv-sec { border: 1px solid var(--line); border-radius: 8px; margin-top: 14px; overflow: hidden; }
+    .pv-sec h4 { margin: 0; padding: 9px 14px; background: #f3f6fb; font-size: 14.5px; }
+    .pv-pass { padding: 12px 14px; font-size: 14.5px; max-height: 220px; overflow: auto; border-bottom: 1px solid var(--line); }
+    .pv-pass p { margin: 0 0 10px; }
+    .pv-q { padding: 10px 14px; border-bottom: 1px solid #eef1f5; font-size: 14.5px; }
+    .pv-q:last-child { border-bottom: 0; }
+    .pv-q ol { margin: 6px 0 0; padding-left: 22px; list-style: upper-alpha; }
+    .pv-q li.k { color: var(--ok); font-weight: 700; }
+    .tag { font-size: 12px; background: #eef1f6; border-radius: 99px; padding: 1px 8px; margin-left: 6px; color: #3d4659; }
+    .row-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    code.cfg { background: #f3f5f9; padding: 2px 6px; border-radius: 5px; }
+    ol.steps li { margin: 6px 0; }
+    @media (max-width: 760px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="topbar"><h1>Test Maker — UTBK Training</h1><div class="who"><a href="index.html">Open student page</a></div></div>
+  <div class="page">
+
+    <div class="card">
+      <h2>1. Test settings</h2>
+      <div class="grid2">
+        <div><label class="field" for="title">Title (students see this)</label><input type="text" id="title" placeholder="e.g. Practice 1 — Main Idea"></div>
+        <div><label class="field" for="tid">File name / ID (letters, numbers, dashes)</label><input type="text" id="tid" placeholder="auto from title"></div>
+      </div>
+      <label class="field" for="desc">Short description (optional)</label><input type="text" id="desc" placeholder="e.g. Latihan tipe soal Main Idea, 10 soal">
+      <div class="grid3">
+        <div><label class="field" for="dur">Time limit (minutes)</label><input type="number" id="dur" value="30" min="1"></div>
+        <div><label class="field" for="leaves">Auto-submit after … leaves</label><input type="number" id="leaves" value="3" min="1"></div>
+        <div><label class="field" for="att">Attempts allowed</label><input type="number" id="att" value="1" min="1"></div>
+      </div>
+      <div class="grid2">
+        <div><label class="field" for="code">Access code (optional)</label><input type="text" id="code" placeholder="e.g. HERI12 — leave empty for none"></div>
+        <div><label class="field" for="cls">Only for these classes (optional, comma-separated)</label><input type="text" id="cls" placeholder="empty = all classes"></div>
+      </div>
+      <div class="toggles">
+        <label><input type="checkbox" id="shT" checked> Shuffle text order</label>
+        <label><input type="checkbox" id="shO" checked> Shuffle options A–E</label>
+        <label><input type="checkbox" id="showR" checked> Show score to students</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2. Questions</h2>
+      <p class="muted small">Type or paste in this format. Put <code>__word__</code> around a word to underline it (for vocabulary or reference questions).</p>
+      <pre class="fmt">=== PASSAGE: Text 1
+(paste the reading text here — leave a blank line between paragraphs)
+
+1. What is the passage mainly about?
+A. option
+B. option
+C. option
+D. option
+E. option
+ANSWER: B
+TYPE: Main idea
+EXPLANATION: (optional — appears only in the teacher's answer key)
+
+2. The underlined word "it" in paragraph 1 refers to ...
+...
+
+=== PASSAGE: Text 2
+...</pre>
+      <p class="muted small">TYPE suggestions: Main idea · Detail · Inference · Vocabulary · Reference · Purpose &amp; attitude. Keep the same names across tests so the results stay comparable.</p>
+      <textarea id="src" spellcheck="false" placeholder="Paste your questions here…"></textarea>
+      <div class="row-btns">
+        <button class="btn" id="check">Check &amp; preview</button>
+        <button class="btn ghost" id="example">Load a small example</button>
+        <label class="btn ghost" style="margin:0">Open saved .txt<input type="file" id="openTxt" accept=".txt" hidden></label>
+      </div>
+    </div>
+
+    <div class="card" id="out" hidden>
+      <h2>3. Preview &amp; download</h2>
+      <div id="result"></div>
+    </div>
+
+    <div class="card">
+      <h2>How to publish a new test</h2>
+      <ol class="steps">
+        <li>Click <b>Download test file</b>. You get a file like <code>practice-1.js</code>.</li>
+        <li>On GitHub, open your repository → folder <b>tests</b> → <b>Add file → Upload files</b> → upload it → <b>Commit changes</b>.</li>
+        <li>Open <b>config.js</b> on GitHub (pencil icon ✏️) and add the line shown below to the <code class="cfg">tests</code> list. Commit.</li>
+        <li>Wait about 1 minute, then reload the student page. The new test appears.</li>
+        <li>Keep the <b>.txt</b> and the <b>answer key</b> on your own computer. Do <u>not</u> upload the answer key to GitHub.</li>
+      </ol>
+    </div>
+    <div class="footer">Herianto, S.Si. · UTBK Training</div>
+  </div>
+
+  <script src="assets/common.js"></script>
+  <script>
+  (function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var lastParsed = null;
+
+    $("title").addEventListener("input", function () {
+      if (!$("tid").dataset.touched) $("tid").value = TP.slug($("title").value);
+    });
+    $("tid").addEventListener("input", function () { $("tid").dataset.touched = "1"; });
+
+    $("example").onclick = function () {
+      if ($("src").value.trim() && !confirm("Replace what is in the box with the example?")) return;
+      $("src").value = "=== PASSAGE: Text 1\nBamboo is one of the fastest-growing plants on Earth. Some species can grow almost one meter in a single day. Because it grows so quickly and needs no replanting after harvest, many designers now see bamboo as an eco-friendly alternative to wood.\n\nHowever, bamboo products are not always as green as they seem. Turning hard bamboo stalks into soft fabric, for example, often requires strong chemicals that can pollute rivers if __they__ are not handled carefully.\n\n1. What is the main idea of the passage?\nA. Bamboo grows faster than any tree.\nB. Bamboo fabric is softer than cotton.\nC. Bamboo is useful but not automatically eco-friendly.\nD. Designers prefer wood to bamboo.\nE. Rivers near bamboo forests are polluted.\nANSWER: C\nTYPE: Main idea\nEXPLANATION: Paragraph 1 gives the benefits; paragraph 2 begins with 'However' and gives the problem.\n\n2. The underlined word \"they\" in paragraph 2 refers to ...\nA. bamboo stalks\nB. rivers\nC. designers\nD. chemicals\nE. products\nANSWER: D\nTYPE: Reference\nEXPLANATION: The chemicals can pollute rivers if they (the chemicals) are not handled carefully.\n";
+      if (!$("title").value) { $("title").value = "Example — Bamboo"; $("tid").value = "example-bamboo"; }
+    };
+
+    $("openTxt").onchange = function (e) {
+      var f = e.target.files[0]; if (!f) return;
+      var r = new FileReader();
+      r.onload = function () {
+        var text = String(r.result);
+        var m = text.match(/^#SETTINGS (.+)\n/);
+        if (m) {
+          try {
+            var s = JSON.parse(m[1]);
+            $("title").value = s.title || ""; $("tid").value = s.id || ""; $("tid").dataset.touched = "1";
+            $("desc").value = s.description || ""; $("dur").value = s.duration || 30; $("leaves").value = s.maxLeaves || 3;
+            $("att").value = s.attempts || 1; $("code").value = s.code || ""; $("cls").value = (s.classes || []).join(", ");
+            $("shT").checked = s.shuffleTexts !== false; $("shO").checked = s.shuffleOptions !== false; $("showR").checked = s.showResult !== false;
+          } catch (err) { }
+          text = text.slice(m[0].length);
+        }
+        $("src").value = text;
+      };
+      r.readAsText(f);
+      e.target.value = "";
+    };
+
+    function meta() {
+      return {
+        id: TP.slug($("tid").value || $("title").value),
+        title: $("title").value.trim() || "Untitled test",
+        description: $("desc").value.trim(),
+        duration: +$("dur").value || 30,
+        maxLeaves: +$("leaves").value || 3,
+        attempts: +$("att").value || 1,
+        code: $("code").value.trim(),
+        classes: $("cls").value.split(",").map(function (s) { return s.trim(); }).filter(Boolean),
+        shuffleTexts: $("shT").checked, shuffleOptions: $("shO").checked, showResult: $("showR").checked
+      };
+    }
+    function download(name, text, type) {
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([text], { type: type || "text/plain" }));
+      a.download = name; document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    }
+
+    $("check").onclick = function () {
+      var p = TP.parseText($("src").value), m = meta();
+      lastParsed = p;
+      $("out").hidden = false;
+      var html = "";
+      if (p.errors.length) {
+        html += '<div class="errs"><b>Please fix these first:</b><ul>' + p.errors.map(function (e) { return "<li>" + TP.esc(e) + "</li>"; }).join("") + "</ul></div>";
+      }
+      var types = {}, n = 0, body = "";
+      p.sections.forEach(function (s, si) {
+        body += '<div class="pv-sec"><h4>' + TP.esc(s.title || ("Text " + (si + 1))) + " · " + s.questions.length + " questions</h4>" +
+          (s.passage ? '<div class="pv-pass">' + TP.passageHTML(s.passage) + "</div>" : "");
+        s.questions.forEach(function (q) {
+          n++; var ty = q.t || "General"; types[ty] = (types[ty] || 0) + 1;
+          body += '<div class="pv-q"><b>' + n + ".</b> " + TP.inline(q.q).replace(/\n/g, "<br>") + '<span class="tag">' + TP.esc(ty) + "</span><ol>" +
+            q.o.map(function (o, i) { return '<li class="' + (i === q.a ? "k" : "") + '">' + TP.inline(o) + "</li>"; }).join("") + "</ol></div>";
+        });
+        body += "</div>";
+      });
+      html += "<p><b>" + n + "</b> questions in <b>" + p.sections.length + "</b> text(s) · " + m.duration + " minutes · " +
+        Object.keys(types).map(function (k) { return TP.esc(k) + " " + types[k]; }).join(" · ") + "</p>";
+      if (!p.errors.length) {
+        html += '<div class="row-btns"><button class="btn ok" id="dlJs">⬇ Download test file (' + TP.esc(m.id) + '.js)</button>' +
+          '<button class="btn ghost" id="dlKey">⬇ Answer key (teacher only)</button>' +
+          '<button class="btn ghost" id="dlTxt">⬇ Save questions (.txt) for editing later</button></div>' +
+          '<p style="margin-top:14px">Line to add in <code>config.js</code> → <code>tests</code> list:<br><code class="cfg">"tests/' + TP.esc(m.id) + '.js",</code></p>';
+      }
+      $("result").innerHTML = html + body;
+      if (!p.errors.length) {
+        $("dlJs").onclick = function () { var mm = meta(); download(mm.id + ".js", TP.testFileSource(TP.buildTestObject(mm, lastParsed)), "text/javascript"); };
+        $("dlKey").onclick = function () { var mm = meta(); download("answer-key-" + mm.id + ".html", TP.answerKeyHTML(mm, lastParsed, "Herianto, S.Si."), "text/html"); };
+        $("dlTxt").onclick = function () { var mm = meta(); download(mm.id + ".txt", "#SETTINGS " + JSON.stringify(mm) + "\n" + $("src").value); };
+      }
+      $("out").scrollIntoView({ behavior: "smooth" });
+    };
+  })();
+  </script>
+</body>
+</html>

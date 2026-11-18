@@ -1,0 +1,99 @@
+/* ================================================================
+   TEACHER SETTINGS — this is the only file you normally edit.
+   ================================================================ */
+window.APP_CONFIG = {
+
+  appTitle: "UTBK Training — Literasi dalam Bahasa Inggris",
+  teacher: "Fatma sari",
+
+  /* 1) GOOGLE FORM for scores (see README, step 2).
+        Paste the PRE-FILLED link here. When you make it, type these
+        words in the fields: NAMA, KELAS, TES, SKOR, CATATAN, JAWABAN
+        Leave it "" to test without sending scores. */
+  googleFormPrefilledLink: "https://docs.google.com/forms/d/e/1FAIpQLSf7R9gVJOCGqUIe42QpUbVXvDRJv5TMXFQx4fBX-WtkOmBzew/viewform?usp=pp_url&entry.2056999298=NAMA&entry.590545369=KELAS&entry.1690637609=TES&entry.1096390773=SKOR&entry.487663220=CATATAN&entry.669231172=JAWABAN",
+
+  /* 2) CLASSES AND STUDENT NAMES.
+        One name per line. You can copy a column from Excel/Sheets
+        and paste it between the ` ` marks. Add or remove classes freely. */
+  classes: {
+    "XII Paket A": `
+      jati
+      aqeel
+      wiwin
+      hufa
+      aura
+      taqia
+      freya
+      syifa
+      reqi
+      safa
+      aisha
+      rafli
+      suratman
+      irdina
+      davina
+      anindia
+      a.balqis raihana
+      naura rasyida
+      salsa
+      sultan
+      nufa
+      atsir
+      ramiza
+      elsa
+      atun
+      farras
+      naufal
+      gifari
+      arkan
+      aura fio
+      rahmi
+      Ainun Nurul Hanifa
+    `,
+    "XII Paket C": `
+      fadillah sahira
+      atikah Nurafi
+      aqueeny alifa
+      kaila
+      arsyi
+      ibrahim
+      andi ahmad bagir
+      a. muh kaisar
+      a. syeikhan
+      nur hafizah sahira
+      falisa asalina
+      arradia fathi zahra
+      alpin
+      nabil
+      ahwalul wahid wellete
+    `,
+    "XII Paket D": `
+      Ainun Qalbi dinnur
+      triana aulia
+      Ghaisan Gibran
+      Annisa bella
+      Rania Zahra
+      Fildzah adibah Nazmi
+      Sophia aluna a
+      Mutiara Hermiati
+      Muhammad
+      Mizzi amanda
+      Nurul atifa
+      Nurul madina
+      Habsyi
+    `,
+    "Guru (uji coba)": `
+      Fatma sari
+    `
+  },
+
+  /* Names that can take every test unlimited times (for trying tests yourself). */
+  unlimitedAttemptsFor: ["Fatma sari"],
+
+  /* 3) TESTS shown to students (top = first).
+        To add a test: make it in maker.html, upload the .js file into
+        the tests/ folder, then add its path below. */
+  tests: [
+    "tests/diagnostic-1.js"
+  ]
+};
