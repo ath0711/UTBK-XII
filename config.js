@@ -168,6 +168,15 @@ window.APP_CONFIG = {
     "tests/diagnostic-1.js",
     "tests/paket-1-lbe.js",   // Latihan Paket 1 (XII Paket A, C, D + Guru) — with pembahasan
 
+    /* ---- VOCAB LEVELS (XII Paket A, C, D + Guru). Each level opens after a score of 80 on the one before. ---- */
+    "tests/vocab-l1.js",
+    "tests/vocab-l2.js",
+    "tests/vocab-l3.js",
+    "tests/vocab-l4.js",
+    "tests/vocab-l5.js",
+    "tests/vocab-l6.js",
+    "tests/vocab-l7.js",
+
     /* ---- LES SORE UTBK (only Edinburgh, Harvard, KAIST and Guru see these).
        To hide a test for now, put // in front of its line. ---- */
     "tests/lessore-m02a.js",

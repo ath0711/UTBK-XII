@@ -80,6 +80,14 @@ The **Guru (uji coba)** class lets you try any test as many times as you want. I
 
 The detailed teacher explanation is `teacher-only/pembahasan-paket-1-lbe.html`. Open it on the projector: arrow keys move between questions, **Space** shows the answer and why every option is right or wrong. Don't upload it.
 
+## Vocab levels (vocab-l1 … vocab-l7)
+Seven vocabulary quizzes for XII Paket A, C and D (and Guru), 15 questions and 10 minutes each:
+- **Locked levels**: a level opens only after the student scores **80** or more on the level before it. Guru (uji coba) sees every level open.
+- **Instant feedback**: after each answer the student sees right/wrong and a short explanation; the answer can't be changed.
+- **Unlimited tries**: every try is sent to your Sheet, so you can see how many attempts each student needed.
+- Progress is saved on the student's device. On a new device or after clearing browser data, a student starts again from Level 1.
+- To change the passing score, edit `passScore` and `requires.score` in the level files, or ask Claude to rebuild them.
+
 ## Starting a test together (access code)
 1. Open `maker.html` → **Hidden access code**. Type the test ID and your code (e.g. `PAKETA1`). Copy the line it shows.
 2. In `config.js` → `accessCodes`, replace the test's line with it, for example:

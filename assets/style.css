@@ -256,3 +256,26 @@ body.in-test { overflow: hidden; user-select: none; -webkit-user-select: none; }
 .rtable td.good { color: var(--ok); font-weight: 700; }
 .rtable td.bad { color: var(--bad); font-weight: 700; }
 .rnote { margin: 10px 0 6px; padding: 10px 12px; background: var(--warn-soft); border-radius: 8px; font-size: 15px; }
+
+/* ---------- quizzes without a reading text (vocabulary levels) ---------- */
+.cbt.no-passage .passage-pane { display: none; }
+.cbt.no-passage .cbt-body { grid-template-columns: minmax(0, 760px) 230px; justify-content: center; }
+@media (max-width: 980px) { .cbt.no-passage .cbt-body { grid-template-columns: 1fr; } }
+
+/* ---------- instant feedback ---------- */
+.opt.good { border-color: var(--ok); background: var(--ok-soft); }
+.opt.good .L { background: var(--ok); border-color: var(--ok); color: #fff; }
+.opt.bad { border-color: var(--bad); background: var(--bad-soft); }
+.opt.bad .L { background: var(--bad); border-color: var(--bad); color: #fff; }
+.opt.dim { opacity: .55; }
+.opt[disabled] { cursor: default; }
+.fb { margin-top: 6px; padding: 11px 13px; border-radius: 8px; font-size: 15px; animation: pop .25s ease-out; }
+.fb.good { background: var(--ok-soft); color: #145c37; }
+.fb.bad { background: var(--bad-soft); color: #8a2a1f; }
+@keyframes pop { from { transform: scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+.qn.wrong { background: var(--bad); border-color: var(--bad); color: #fff; }
+
+/* ---------- levels ---------- */
+.test-card.locked { opacity: .7; background: #f7f8fa; }
+.chip.warnc { background: var(--warn-soft); color: #8a6100; font-weight: 600; }
+.big-msg { font-size: 17px; margin: 0 0 14px; }

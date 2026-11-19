@@ -210,6 +210,18 @@
     inp.onkeydown = function (e) { if (e.key === "Enter") tryIt(); };
   }
 
+  /* ---------------- levels: a test can require a passing score on another test ---------------- */
+  function bestScore(t, st) {
+    return attemptsOf(t, st).reduce(function (m, a) { return Math.max(m, a.score || 0); }, -1);
+  }
+  function lockOf(t, st) { // null = open; else {req, need}
+    if (!t.requires || isUnlimited(st)) return null;
+    var req = TESTS.filter(function (x) { return x.id === t.requires.test; })[0];
+    if (!req) return null;
+    var need = Number(t.requires.score) || 80;
+    return bestScore(req, st) >= need ? null : { req: req, need: need };
+  }
+
   function renderHome() {
     inReview = false;
     document.body.classList.remove("in-test");
@@ -225,6 +237,15 @@
       var status = "";
       if (done.length) status = '<span class="chip ok">Selesai' + (t.showResult !== false && last ? " · skor " + last.score : "") + "</span>";
       var revBtn = (last && last.rev && t.rv) ? '<button class="btn ghost" data-rev="' + TP.esc(t.id) + '">Pembahasan</button>' : "";
+      var lock = lockOf(t, st), best = bestScore(t, st);
+      if (t.passScore && done.length) status = best >= t.passScore
+        ? '<span class="chip ok">Lulus ✓ · skor terbaik ' + best + "</span>"
+        : '<span class="chip warnc">Belum lulus · skor terbaik ' + best + " (perlu " + t.passScore + ")</span>";
+      if (lock) {
+        return '<div class="card test-card locked"><div><h3>🔒 ' + TP.esc(t.title) + "</h3>" +
+          '<div class="muted small">Terkunci. Lulus <b>' + TP.esc(lock.req.title) + "</b> dulu (skor minimal " + lock.need + ").</div></div>" +
+          '<span class="chip closed">Terkunci</span></div>';
+      }
       return '<div class="card test-card"><div><h3>' + TP.esc(t.title) + "</h3>" +
         (t.description ? '<div class="muted small">' + TP.esc(t.description) + "</div>" : "") +
         '<div class="chips"><span class="chip">' + t._count + ' soal</span><span class="chip">' + t.duration +
@@ -255,6 +276,7 @@
 
   function renderRules(t) {
     var st = LS.get("tp_student", null);
+    if (lockOf(t, st)) return renderHome();
     app.innerHTML = topbar(st) + '<div class="page"><div class="card"><h2>' + TP.esc(t.title) + "</h2>" +
       '<div class="chips"><span class="chip">' + t._count + ' soal</span><span class="chip">' + t.duration + " menit</span></div>" +
       '<h3 style="margin:20px 0 4px;font-size:16px">Peraturan</h3><ul class="rules">' +
@@ -266,6 +288,8 @@
       "<li>Tandai soal yang ingin dicek lagi dengan tombol <b>Ragu-ragu</b>.</li>" +
       "<li>Saat waktu habis, jawaban dikumpulkan otomatis. Soal kosong dihitung salah (tidak ada pengurangan nilai).</li>" +
       (t.attempts === 1 ? "<li>Tes ini hanya bisa dikerjakan <b>satu kali</b>.</li>" : "") +
+      (t.instantFeedback ? "<li>Setelah kamu memilih jawaban, langsung terlihat <b>benar atau salah</b> beserta penjelasannya. Pilihan tidak bisa diubah.</li>" : "") +
+      (t.passScore ? "<li>Kamu <b>lulus</b> jika skor minimal <b>" + t.passScore + "</b>. Belum lulus? Coba lagi sampai lulus untuk membuka level berikutnya.</li>" : "") +
       "</ul>" +
       (codeFor(t) ? '<label class="field" for="code">Kode tes (dari guru)</label><input type="text" id="code" autocomplete="off" placeholder="Masukkan kode">' : "") +
       '<label class="check"><input type="checkbox" id="agree"> <span>Saya <b>' + TP.esc(st.name) + "</b> sudah membaca peraturan dan akan mengerjakan dengan jujur.</span></label>" +
@@ -348,6 +372,9 @@
       '<button class="btn ok block" id="finish">Selesai &amp; Kumpulkan</button></div></aside></div></div>';
 
     var order = seq();
+    if (T.sections.every(function (s) { return !(s.passage && s.passage.trim()); })) document.querySelector(".cbt").classList.add("no-passage");
+    var IF = !!T.instantFeedback, KEY = IF ? TP.decodeKey(T.key, T.id) : null, NOTES = [];
+    if (IF && T.rv) { try { NOTES = JSON.parse(TP.decodeText(T.rv, T.id)); } catch (e) { NOTES = []; } }
     var grid = document.getElementById("qgrid");
     grid.innerHTML = order.map(function (g, i) { return '<button class="qn" data-p="' + i + '">' + (i + 1) + "</button>"; }).join("");
     grid.onclick = function (e) {
@@ -415,13 +442,16 @@
           document.getElementById("clear").style.visibility = S.answers[g] == null ? "hidden" : "visible";
         };
       } else {
-        var oo = S.optOrder[g];
+        var oo = S.optOrder[g], fb = IF && a != null;
         optsEl.innerHTML = oo.map(function (orig, i) {
-          return '<button class="opt' + (a === orig ? " sel" : "") + '" data-o="' + orig + '"><span class="L">' +
+          var c = a === orig ? " sel" : "";
+          if (fb) c = orig === KEY[g] ? " good" : (a === orig ? " bad" : " dim");
+          return '<button class="opt' + c + '" data-o="' + orig + '"' + (fb ? " disabled" : "") + '><span class="L">' +
             TP.LETTERS[i] + "</span><span>" + TP.inline(q.o[orig]) + "</span></button>";
-        }).join("");
+        }).join("") + (fb ? '<div class="fb ' + (a === KEY[g] ? "good" : "bad") + '"><b>' + (a === KEY[g] ? "✓ Benar!" : "✗ Belum tepat.") + "</b> " +
+          ((NOTES[g] && NOTES[g].e) ? TP.inline(NOTES[g].e) : "") + "</div>" : "");
       }
-      document.getElementById("clear").style.visibility = S.answers[g] == null ? "hidden" : "visible";
+      document.getElementById("clear").style.visibility = (S.answers[g] == null || IF) ? "hidden" : "visible";
       document.getElementById("flag").checked = !!S.flags[g];
       document.getElementById("prev").disabled = pos === 0;
       document.getElementById("next").textContent = pos === order.length - 1 ? "Selesai ›" : "Selanjutnya ›";
@@ -435,6 +465,7 @@
         save(); paintQuestion(); paintGrid(); return;
       }
       var b = e.target.closest("[data-o]"); if (!b) return;
+      if (IF && S.answers[g] != null) return;
       S.answers[g] = +b.getAttribute("data-o");
       save(); paintQuestion(); paintGrid();
     };
@@ -443,7 +474,8 @@
       grid.querySelectorAll(".qn").forEach(function (b, i) {
         var g = order[i], a = isAnswered(Q(T, g), S.answers[g]), fl = !!S.flags[g];
         if (a) answered++; if (fl) flagged++;
-        b.className = "qn" + (fl ? " flag" : a ? " ans" : "") + (i === pos ? " cur" : "");
+        var st = a && IF ? (S.answers[g] === KEY[g] ? " ans" : " wrong") : (a ? " ans" : "");
+        b.className = "qn" + (fl ? " flag" : st) + (i === pos ? " cur" : "");
       });
       document.getElementById("stat").textContent = "Dijawab " + answered + "/" + order.length + (flagged ? " · Ragu-ragu " + flagged : "");
       var lv = document.getElementById("leaves");
@@ -662,7 +694,14 @@
         var x = r.types[k], pct = Math.round(x.c / x.n * 100);
         return '<div class="bar-row"><span>' + TP.esc(k) + '</span><div class="bar"><i style="width:' + pct + '%"></i></div><b>' + x.c + "/" + x.n + "</b></div>";
       }).join("");
-      body = '<p class="muted" style="margin:0">Skor kamu</p><div class="score-big">' + r.score + "</div>" +
+      var passMsg = "";
+      if (t.passScore) {
+        var nextLv = TESTS.filter(function (x) { return x.requires && x.requires.test === t.id; })[0];
+        passMsg = r.score >= t.passScore
+          ? '<div class="sent ok big-msg">🎉 Lulus! ' + (nextLv ? "<b>" + TP.esc(nextLv.title) + "</b> sekarang terbuka." : "Kamu sudah menyelesaikan level terakhir!") + "</div>"
+          : '<div class="sent no big-msg">Belum lulus. Perlu skor <b>' + t.passScore + "</b> untuk membuka level berikutnya. Lihat pembahasan, lalu coba lagi!</div>";
+      }
+      body = passMsg + '<p class="muted" style="margin:0">Skor kamu</p><div class="score-big">' + r.score + "</div>" +
         '<p style="margin:0">Benar <b>' + r.correct + "</b> dari " + r.total + ' soal</p><p class="muted small">' + TP.esc(reason) + "</p>" +
         '<h3 style="font-size:16px;margin:22px 0 0">Hasil per tipe soal</h3><div class="bars">' + bars + "</div>";
     } else {
