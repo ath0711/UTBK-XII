@@ -164,6 +164,25 @@ window.APP_CONFIG = {
         To add a test: make it in maker.html, upload the .js file into
         the tests/ folder, then add its path below. */
   tests: [
-    "tests/diagnostic-1.js"
+    "tests/diagnostic-1.js",
+
+    /* ---- LES SORE UTBK (only Edinburgh, Harvard, KAIST and Guru see these).
+       To hide a test for now, put // in front of its line. ---- */
+    "tests/lessore-m02a.js",
+    "tests/lessore-m02b.js",
+    "tests/lessore-m03a.js",
+    "tests/lessore-m03b.js",
+    "tests/lessore-m04a.js",
+    "tests/lessore-m04b.js",
+    "tests/lessore-m05a.js",
+    "tests/lessore-m05b.js",
+    "tests/lessore-m06a.js",
+    "tests/lessore-m06b.js",
+    "tests/lessore-m07a.js",
+    "tests/lessore-m07b.js",
+    "tests/lessore-m08a.js",
+    "tests/lessore-m08b.js",
+    "tests/lessore-m09.js",
+    "tests/lessore-m10.js"
   ]
 };
