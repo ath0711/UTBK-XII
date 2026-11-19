@@ -70,6 +70,38 @@ The **Guru (uji coba)** class lets you try any test as many times as you want. I
 3. Add its line to `tests` in `config.js`, for example `"tests/practice-1.js",`
 4. Keep the **answer key** and the **.txt** on your computer. Don't upload them. You can re-open the .txt in the maker later to edit the test.
 
+## Table items, short answers and pembahasan (Paket 1 and later)
+`tests/paket-1-lbe.js` uses three things the maker can't make yet. They need the updated `assets/app.js`, `assets/common.js` and `assets/style.css`:
+- **Table items** (like the real UTBK): one choice per row. The item is right only if every row is right. In the Sheet's `Jawaban` column they look like `4[1221]✓` (1 = first column, 2 = second column).
+- **Short answers**: students type the answer; capital letters and punctuation are ignored.
+- **Tables inside a passage**: lines that start with `|` show as a table.
+- **Pembahasan for students**: after submitting, students tap **Lihat pembahasan** to see each question marked Benar/Salah, their answer, the key, and a short explanation. They can open it again later with the **Pembahasan** button on the test card. Because the review shows the key, give the test to all classes in the same session.
+- Question numbers are the same for every student (texts are not shuffled), but the A–E order is still shuffled. In the explain session, name the answer by its content, not only its letter.
+
+The detailed teacher explanation is `teacher-only/pembahasan-paket-1-lbe.html`. Open it on the projector: arrow keys move between questions, **Space** shows the answer and why every option is right or wrong. Don't upload it.
+
+## Starting a test together (access code)
+1. Open `maker.html` → **Hidden access code**. Type the test ID and your code (e.g. `PAKETA1`). Copy the line it shows.
+2. In `config.js` → `accessCodes`, replace the test's line with it, for example:
+```js
+accessCodes: {
+  "diagnostic-1": "hidden:1a2b3c4d"
+},
+```
+Students then need the code before they can start, so nobody begins early. Announce it in class when it's time. To let students take the test any time on their own, set it back to `""`.
+On GitHub: open `config.js` → ✏️ → paste the line → **Commit changes**. It takes about 1 minute to update. If a student's page doesn't show the code box yet, they reload the page.
+
+## Letting a student try again (teacher PIN)
+When a student has used their attempt (for example, auto-submitted after leaving 3 times), their test card shows **Buka lagi (guru)**. Tap it on the student's device and type the teacher PIN: the student gets one more attempt. Both attempts arrive in your Sheet ("Percobaan ke-1", "ke-2").
+To change the PIN: `maker.html` → **Hidden access code** → Test ID `reset` → type the new PIN → paste the line into `config.js` (`teacherResetCode`).
+
+## Tablets and false alarms
+In `config.js` → `antiCheat`:
+- `ignoreShorterThanSeconds: 3` means leaving the page for less than 3 seconds isn't counted (accidental swipes, a notification).
+- `maxViolations: 3` is how many leaves auto-submit the test. Raise it (e.g. 5) if tablets still trigger too often.
+
+On tablets and phones, notifications, the keyboard, and swiping out of fullscreen are not counted. Students are only asked to go back to fullscreen. Real tab or app switches still count. The screen also stays on during the test, so auto-lock doesn't count as leaving. Ask tablet users to turn on Do Not Disturb before starting.
+
 Other test settings:
 - **Access code**: students must type a code before starting, so you control when the test opens.
 - **Only for these classes**: limits a test to certain classes.

@@ -16,10 +16,48 @@
       .replace(/__(.+?)__/g, "<u>$1</u>")
       .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
   };
+  // a block whose lines all start with "|" is drawn as a table
+  // (| a | b | rows; a |---|---| line marks the row above it as the header)
+  TP.tableHTML = function (block) {
+    var rows = block.trim().split("\n").map(function (l) {
+      return l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(function (c) { return c.trim(); });
+    });
+    var html = '<table class="ptable">', headDone = false;
+    rows.forEach(function (r, i) {
+      if (r.every(function (c) { return /^:?-{2,}:?$/.test(c); })) return;
+      var isHead = !headDone && rows[i + 1] && rows[i + 1].every(function (c) { return /^:?-{2,}:?$/.test(c); });
+      if (isHead) headDone = true;
+      var tag = isHead ? "th" : "td";
+      html += "<tr>" + r.map(function (c) { return "<" + tag + ">" + TP.inline(c) + "</" + tag + ">"; }).join("") + "</tr>";
+    });
+    return html + "</table>";
+  };
   TP.passageHTML = function (text) {
     return String(text || "").trim().split(/\n\s*\n/).map(function (p) {
-      return "<p>" + TP.inline(p.trim()).replace(/\n/g, "<br>") + "</p>";
+      p = p.trim();
+      if (p.split("\n").every(function (l) { return /^\s*\|/.test(l); })) return TP.tableHTML(p);
+      return "<p>" + TP.inline(p).replace(/\n/g, "<br>") + "</p>";
     }).join("");
+  };
+
+  /* ---------- short answers: compared by a scrambled fingerprint ---------- */
+  TP.normShort = function (s) {
+    return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  };
+  TP.shortHash = function (answer, id) { return TP.hash(TP.normShort(answer) + "|" + id); };
+
+  /* ---------- review text, scrambled so it can't be read before the test ---------- */
+  function toUtf8(s) { return unescape(encodeURIComponent(s)); }
+  function fromUtf8(s) { return decodeURIComponent(escape(s)); }
+  TP.encodeText = function (str, salt) {
+    var sb = saltBytes("rv" + salt), s = toUtf8(str), out = "";
+    for (var i = 0; i < s.length; i++) out += String.fromCharCode((s.charCodeAt(i) ^ sb[i % sb.length] ^ ((i * 7) & 255)) & 255);
+    return b64e(out);
+  };
+  TP.decodeText = function (str, salt) {
+    var sb = saltBytes("rv" + salt), bin = b64d(str), out = "";
+    for (var i = 0; i < bin.length; i++) out += String.fromCharCode((bin.charCodeAt(i) ^ sb[i % sb.length] ^ ((i * 7) & 255)) & 255);
+    return fromUtf8(out);
   };
   TP.shuffle = function (arr) {
     var a = arr.slice();

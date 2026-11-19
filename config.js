@@ -142,7 +142,8 @@ window.APP_CONFIG = {
         (A plain code like "PAKETA1" also works, but anyone can read it here.)
         Leave it "" so students can start any time on their own. */
   accessCodes: {
-    "diagnostic-1": ""
+    "diagnostic-1": "",
+    "paket-1-lbe": ""
   },
 
   /* TEACHER PIN — lets a student take a test again (e.g. after an auto-submit).
@@ -165,6 +166,7 @@ window.APP_CONFIG = {
         the tests/ folder, then add its path below. */
   tests: [
     "tests/diagnostic-1.js",
+    "tests/paket-1-lbe.js",   // Latihan Paket 1 (XII Paket A, C, D + Guru) — with pembahasan
 
     /* ---- LES SORE UTBK (only Edinburgh, Harvard, KAIST and Guru see these).
        To hide a test for now, put // in front of its line. ---- */

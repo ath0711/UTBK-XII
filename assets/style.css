@@ -198,3 +198,61 @@ body.in-test { overflow: hidden; user-select: none; -webkit-user-select: none; }
   .qnav .btn { padding: 9px 9px; font-size: 13.5px; white-space: nowrap; }
   .ragu { padding: 8px 8px; font-size: 13px; white-space: nowrap; gap: 6px; }
 }
+
+/* ---------- tables in passages ---------- */
+.ptable { border-collapse: collapse; margin: 6px 0 14px; font-size: 14.5px; width: 100%; }
+.ptable th, .ptable td { border: 1px solid var(--line); padding: 6px 9px; text-align: left; vertical-align: top; }
+.ptable th { background: var(--brand-soft); }
+
+/* ---------- table (complex multiple-choice) and short-answer items ---------- */
+.qtable { border-collapse: collapse; width: 100%; font-size: 15px; }
+.qtable th, .qtable td { border: 1px solid var(--line); padding: 8px 10px; vertical-align: middle; text-align: left; }
+.qtable th { background: #f3f6fb; font-size: 14px; }
+.qtable td.pick { text-align: center; width: 92px; }
+.tick {
+  width: 34px; height: 34px; border-radius: 50%; border: 2px solid #b9c3d3; background: #fff;
+  color: #fff; font-weight: 800; font-size: 17px; line-height: 1;
+}
+.tick:hover { border-color: var(--brand-2); }
+.tick.sel { background: var(--brand); border-color: var(--brand); }
+.short-in {
+  width: 100%; font: inherit; font-size: 17px; padding: 12px 14px; border: 2px solid var(--line);
+  border-radius: 8px; background: #fff;
+}
+.short-in:focus { outline: none; border-color: var(--brand-2); }
+
+/* ---------- test card buttons ---------- */
+.card-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+
+/* ---------- review (pembahasan) ---------- */
+.rchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.rchip {
+  width: 38px; height: 34px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; text-decoration: none; font-size: 14px;
+}
+.rchip.good { background: var(--ok-soft); color: var(--ok); border: 1px solid #b8e0c9; }
+.rchip.bad { background: var(--bad-soft); color: var(--bad); border: 1px solid #f2c2bc; }
+.rsec { margin-top: 16px; }
+.rsec h3 { margin: 0 0 8px; font-size: 17px; }
+.rpass { margin: 0 0 6px; background: #f7f9fc; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.rpass summary { cursor: pointer; font-weight: 600; color: var(--brand); }
+.rpass .passage { font-size: 15px; margin-top: 8px; }
+.ritem { border-top: 1px solid var(--line); padding: 16px 0 6px; scroll-margin-top: 12px; }
+.rhead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.rbadge { font-size: 13px; font-weight: 700; padding: 2px 9px; border-radius: 99px; }
+.rbadge.good { background: var(--ok-soft); color: var(--ok); }
+.rbadge.bad { background: var(--bad-soft); color: var(--bad); }
+.ropt {
+  display: flex; gap: 10px; align-items: flex-start; padding: 8px 11px; margin: 6px 0;
+  border: 1px solid var(--line); border-radius: 8px; font-size: 15px;
+}
+.ropt .L { font-weight: 700; min-width: 18px; }
+.ropt .tag { margin-left: auto; font-size: 12px; font-weight: 700; white-space: nowrap; padding: 1px 8px; border-radius: 99px; background: #eef1f6; color: var(--muted); }
+.ropt.right { border-color: #8fd1ab; background: var(--ok-soft); }
+.ropt.right .tag { background: var(--ok); color: #fff; }
+.ropt.mine.bad { border-color: #eeaaa2; background: var(--bad-soft); }
+.ropt.mine.bad .tag { background: var(--bad); color: #fff; }
+.ropt.mine.good { border-color: #8fd1ab; background: var(--ok-soft); }
+.rtable td.good { color: var(--ok); font-weight: 700; }
+.rtable td.bad { color: var(--bad); font-weight: 700; }
+.rnote { margin: 10px 0 6px; padding: 10px 12px; background: var(--warn-soft); border-radius: 8px; font-size: 15px; }
