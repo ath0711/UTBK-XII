@@ -81,7 +81,7 @@ The **Guru (uji coba)** class lets you try any test as many times as you want. I
 The detailed teacher explanation is `teacher-only/pembahasan-paket-1-lbe.html`. Open it on the projector: arrow keys move between questions, **Space** shows the answer and why every option is right or wrong. Don't upload it.
 
 ## Vocab levels (vocab-l1 … vocab-l7)
-Seven vocabulary quizzes for XII Paket A, C and D (and Guru), 15 questions and 10 minutes each:
+Seven vocabulary quizzes for XII Paket A, C, D, KAIST, Edinburgh and Harvard (and Guru), 15 questions and 10 minutes each:
 - **Locked levels**: a level opens only after the student scores **80** or more on the level before it. Guru (uji coba) sees every level open.
 - **Instant feedback**: after each answer the student sees right/wrong and a short explanation; the answer can't be changed.
 - **Unlimited tries**: every try is sent to your Sheet, so you can see how many attempts each student needed.

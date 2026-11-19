@@ -18,6 +18,9 @@ registerTest({
   "XII Paket A",
   "XII Paket C",
   "XII Paket D",
+  "KAIST",
+  "Edinburgh",
+  "Harvard",
   "Guru (uji coba)"
  ],
  "codeHash": "",
