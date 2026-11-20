@@ -3,7 +3,7 @@
    ================================================================ */
 window.APP_CONFIG = {
 
-  appTitle: "UTBK Training — Literasi dalam Bahasa Inggris",
+  appTitle: "UTBK Training — English Literacy",
   teacher: "Fatma sari",
 
   /* 1) GOOGLE FORM for scores (see README, step 2).

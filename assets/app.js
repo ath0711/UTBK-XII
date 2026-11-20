@@ -1,7 +1,7 @@
 /* UTBK-style test platform — student side. */
 (function () {
   "use strict";
-  var APP_VERSION = "20 Nov · kunci-3"; // shown in the footer: check this to see which version is live
+  var APP_VERSION = "20 Nov · EN"; // shown in the footer: check this to see which version is live
   var C = window.APP_CONFIG || {};
   var TP = window.TP;
   var TESTS = [];
@@ -61,7 +61,7 @@
   function openTime(t) { var ms = t.openFrom ? Date.parse(t.openFrom) : 0; return isNaN(ms) ? 0 : ms; }
   function notYetOpen(t) { return openTime(t) > Date.now(); }
   function fmtDate(ms) {
-    var d = new Date(ms), mo = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+    var d = new Date(ms), mo = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return d.getDate() + " " + mo[d.getMonth()] + " " + d.getFullYear() + ", " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
   }
   var UNLOCK = "tp_unlock|";
@@ -216,35 +216,35 @@
   function topbar(st) {
     return '<div class="topbar"><h1>' + TP.esc(C.appTitle || "UTBK Training") + "</h1>" +
       (st ? '<div class="who">' + TP.esc(st.name) + " · " + TP.esc(st.kelas) +
-        ' <a href="#" id="chg">Ganti</a></div>' : "") + "</div>";
+        ' <a href="#" id="chg">Change</a></div>' : "") + "</div>";
   }
   function footer() {
-    return '<div class="footer">' + (C.teacher ? TP.esc(C.teacher) + " · " : "") + "UTBK Training · versi " + APP_VERSION + "</div>";
+    return '<div class="footer">' + (C.teacher ? TP.esc(C.teacher) + " · " : "") + "UTBK Training · version " + APP_VERSION + "</div>";
   }
   function testModeBanner() {
-    return formInfo() ? "" : '<div class="banner warn"><b>Mode uji coba:</b> skor belum dikirim ke guru karena link Google Form belum diisi di <code>config.js</code>.</div>';
+    return formInfo() ? "" : '<div class="banner warn"><b>Test mode:</b> scores are not sent to the teacher because the Google Form link in <code>config.js</code> is empty.</div>';
   }
 
   function renderLogin() {
     document.body.classList.remove("in-test");
     var cl = classList(), names = Object.keys(cl);
     app.innerHTML = topbar(null) + '<div class="page">' + testModeBanner() +
-      '<div class="card"><h2>Selamat datang 👋</h2><p class="muted">Pilih kelas dan namamu sebelum mengerjakan tes.</p>' +
-      '<label class="field" for="kelas">Kelas</label><select id="kelas"><option value="">— pilih kelas —</option>' +
+      '<div class="card"><h2>Welcome 👋</h2><p class="muted">Choose your class and your name before you start a test.</p>' +
+      '<label class="field" for="kelas">Class</label><select id="kelas"><option value="">— choose your class —</option>' +
       names.map(function (k) { return '<option>' + TP.esc(k) + "</option>"; }).join("") + "</select>" +
-      '<label class="field" for="nama">Nama</label><select id="nama" disabled><option value="">— pilih kelas dulu —</option></select>' +
+      '<label class="field" for="nama">Name</label><select id="nama" disabled><option value="">— choose your class first —</option></select>' +
       '<button class="btn block" id="go" disabled>Masuk</button></div>' + footer() + "</div>";
     var kSel = document.getElementById("kelas"), nSel = document.getElementById("nama"), go = document.getElementById("go");
     kSel.onchange = function () {
       var list = cl[kSel.value] || [];
-      nSel.innerHTML = '<option value="">— pilih namamu —</option>' + list.map(function (n) { return "<option>" + TP.esc(n) + "</option>"; }).join("");
+      nSel.innerHTML = '<option value="">— choose your name —</option>' + list.map(function (n) { return "<option>" + TP.esc(n) + "</option>"; }).join("");
       nSel.disabled = !list.length; go.disabled = true;
     };
     nSel.onchange = function () { go.disabled = !nSel.value; };
     go.onclick = function () {
       var st = { kelas: kSel.value, name: nSel.value };
-      confirmBox("Ini benar kamu?", "<p><b>" + TP.esc(st.name) + "</b><br>" + TP.esc(st.kelas) +
-        '</p><p class="muted small">Nama ini akan dikirim bersama skormu ke guru.</p>', "Ya, benar", "Bukan",
+      confirmBox("Is this you?", "<p><b>" + TP.esc(st.name) + "</b><br>" + TP.esc(st.kelas) +
+        '</p><p class="muted small">This name will be sent to your teacher with your score.</p>', "Yes, that's me", "No",
         function () { LS.set("tp_student", st); renderHome(); });
     };
   }
@@ -268,14 +268,14 @@
     return m ? m[1].toLowerCase() : TP.hash(raw.toUpperCase());
   }
   function askTeacherReset(t, st) {
-    var m = modal("<h3>Buka kesempatan lagi</h3><p>Minta <b>guru</b> mengetik PIN di bawah ini.</p>" +
-      '<input type="password" id="rpin" autocomplete="off" placeholder="PIN guru">' +
+    var m = modal("<h3>Give another attempt</h3><p>Ask your <b>teacher</b> to type the PIN below.</p>" +
+      '<input type="password" id="rpin" autocomplete="off" placeholder="Teacher PIN">' +
       '<p class="muted small" id="rmsg" style="min-height:1.2em"></p>' +
-      '<div class="actions"><button class="btn ghost" id="rno">Batal</button><button class="btn" id="rok">Buka</button></div>');
+      '<div class="actions"><button class="btn ghost" id="rno">Cancel</button><button class="btn" id="rok">Open</button></div>');
     var inp = m.querySelector("#rpin"); inp.focus();
     m.querySelector("#rno").onclick = closeModal;
     function tryIt() {
-      if (TP.hash(inp.value.trim().toUpperCase()) !== resetHash()) { m.querySelector("#rmsg").textContent = "PIN salah."; inp.value = ""; return; }
+      if (TP.hash(inp.value.trim().toUpperCase()) !== resetHash()) { m.querySelector("#rmsg").textContent = "Wrong PIN."; inp.value = ""; return; }
       LS.set(extraKey(t, st), (LS.get(extraKey(t, st), 0) || 0) + 1);
       closeModal(); renderHome();
     }
@@ -309,31 +309,31 @@
       var left = attemptsLeft(t, st);
       var last = done[done.length - 1];
       var status = "";
-      if (done.length) status = '<span class="chip ok">Selesai' + (t.showResult !== false && last ? " · skor " + last.score : "") + "</span>";
-      var revBtn = (last && last.rev && (t.rv || (t.enc && t.sections))) ? '<button class="btn ghost" data-rev="' + TP.esc(t.id) + '">' + (t.rv ? "Pembahasan" : "Jawaban benar") + "</button>" : "";
+      if (done.length) status = '<span class="chip ok">Done' + (t.showResult !== false && last ? " · score " + last.score : "") + "</span>";
+      var revBtn = (last && last.rev && (t.rv || (t.enc && t.sections))) ? '<button class="btn ghost" data-rev="' + TP.esc(t.id) + '">' + (t.rv ? "Explanations" : "Correct answers") + "</button>" : "";
       var lock = lockOf(t, st), best = bestScore(t, st);
       if (t.passScore && done.length) status = best >= t.passScore
-        ? '<span class="chip ok">Lulus ✓ · skor terbaik ' + best + "</span>"
-        : '<span class="chip warnc">Belum lulus · skor terbaik ' + best + " (perlu " + t.passScore + ")</span>";
+        ? '<span class="chip ok">Passed ✓ · best score ' + best + "</span>"
+        : '<span class="chip warnc">Not passed yet · best score ' + best + " (need " + t.passScore + ")</span>";
       if (lock) {
         return '<div class="card test-card locked"><div><h3>🔒 ' + TP.esc(t.title) + "</h3>" +
-          '<div class="muted small">Terkunci. Lulus <b>' + TP.esc(lock.req.title) + "</b> dulu (skor minimal " + lock.need + ").</div></div>" +
-          '<span class="chip closed">Terkunci</span></div>';
+          '<div class="muted small">Locked. Pass <b>' + TP.esc(lock.req.title) + "</b> first (minimum score " + lock.need + ").</div></div>" +
+          '<span class="chip closed">Locked</span></div>';
       }
       return '<div class="card test-card"><div><h3>' + TP.esc(t.title) + "</h3>" +
         (t.description ? '<div class="muted small">' + TP.esc(t.description) + "</div>" : "") +
-        '<div class="chips"><span class="chip">' + t._count + ' soal</span><span class="chip">' + t.duration +
-        " menit</span>" + (codeFor(t) ? '<span class="chip">butuh kode</span>' : "") +
-        (notYetOpen(t) ? '<span class="chip warnc">Guru saja · siswa mulai ' + fmtDate(openTime(t)) + "</span>" : "") + status + "</div></div>" +
+        '<div class="chips"><span class="chip">' + t._count + ' questions</span><span class="chip">' + t.duration +
+        " minutes</span>" + (codeFor(t) ? '<span class="chip">code needed</span>' : "") +
+        (notYetOpen(t) ? '<span class="chip warnc">Teacher only · opens for students ' + fmtDate(openTime(t)) + "</span>" : "") + status + "</div></div>" +
         '<div class="card-actions">' + revBtn +
-        (left > 0 ? '<button class="btn" data-id="' + TP.esc(t.id) + '">' + (done.length ? "Kerjakan lagi" : "Mulai") + "</button>"
-          : '<div style="text-align:right"><span class="chip closed">Kesempatan habis</span>' +
-            (resetHash() ? '<br><button class="clear-link" data-reset="' + TP.esc(t.id) + '">Buka lagi (guru)</button>' : "") + "</div>") + "</div></div>";
+        (left > 0 ? '<button class="btn" data-id="' + TP.esc(t.id) + '">' + (done.length ? "Try again" : "Start") + "</button>"
+          : '<div style="text-align:right"><span class="chip closed">No attempts left</span>' +
+            (resetHash() ? '<br><button class="clear-link" data-reset="' + TP.esc(t.id) + '">Reopen (teacher)</button>' : "") + "</div>") + "</div></div>";
     }).join("");
-    if (!visible.length) cards = '<div class="card muted">Belum ada tes untukmu saat ini.</div>';
-    var errs = LOAD_ERRORS.length ? '<div class="banner warn">Tidak bisa memuat: ' + LOAD_ERRORS.map(TP.esc).join(", ") + "</div>" : "";
+    if (!visible.length) cards = '<div class="card muted">There are no tests for you right now.</div>';
+    var errs = LOAD_ERRORS.length ? '<div class="banner warn">Could not load: ' + LOAD_ERRORS.map(TP.esc).join(", ") + "</div>" : "";
     app.innerHTML = topbar(st) + '<div class="page">' + testModeBanner() + errs +
-      '<p class="muted" style="margin:0 0 14px">Daftar tes</p>' + cards + footer() + "</div>";
+      '<p class="muted" style="margin:0 0 14px">Tests</p>' + cards + footer() + "</div>";
     document.getElementById("chg").onclick = function (e) { e.preventDefault(); LS.del("tp_student"); renderLogin(); };
     app.querySelectorAll("[data-rev]").forEach(function (b) {
       b.onclick = function () {
@@ -353,27 +353,27 @@
     var st = LS.get("tp_student", null);
     if (lockOf(t, st) || (notYetOpen(t) && !isUnlimited(st))) return renderHome();
     app.innerHTML = topbar(st) + '<div class="page"><div class="card"><h2>' + TP.esc(t.title) + "</h2>" +
-      '<div class="chips"><span class="chip">' + t._count + ' soal</span><span class="chip">' + t.duration + " menit</span></div>" +
-      '<h3 style="margin:20px 0 4px;font-size:16px">Peraturan</h3><ul class="rules">' +
-      "<li>Waktu <b>" + t.duration + " menit</b> dimulai saat kamu menekan <i>Mulai Tes</i> dan terus berjalan walaupun halaman ditutup.</li>" +
-      "<li>Tes berjalan dalam <b>layar penuh</b>. Jangan pindah tab, membuka aplikasi lain, atau keluar dari layar penuh.</li>" +
-      "<li>Pindah tab, membuka aplikasi lain, atau membuka layar terpisah (split screen) — <b>sesingkat apa pun</b> — dihitung <b>pelanggaran</b> dan dicatat untuk guru. Pada pelanggaran ke-" + t.maxLeaves +
-      ", tes <b>dikunci</b> dan hanya bisa dibuka lagi oleh <b>guru</b> (waktu tetap berjalan).</li>" +
-      (isTouch ? "<li>Pakai tablet/HP? Matikan notifikasi (mode <i>Jangan Ganggu</i>) dan tutup aplikasi lain sebelum mulai.</li>" : "") +
-      "<li>Tandai soal yang ingin dicek lagi dengan tombol <b>Ragu-ragu</b>.</li>" +
-      "<li>Saat waktu habis, jawaban dikumpulkan otomatis. Soal kosong dihitung salah (tidak ada pengurangan nilai).</li>" +
-      (t.attempts === 1 ? "<li>Tes ini hanya bisa dikerjakan <b>satu kali</b>.</li>" : "") +
-      (t.instantFeedback ? "<li>Setelah kamu memilih jawaban, langsung terlihat <b>benar atau salah</b> beserta penjelasannya. Pilihan tidak bisa diubah.</li>" : "") +
-      (t.passScore ? "<li>Kamu <b>lulus</b> jika skor minimal <b>" + t.passScore + "</b>. Belum lulus? Coba lagi sampai lulus untuk membuka level berikutnya.</li>" : "") +
+      '<div class="chips"><span class="chip">' + t._count + ' questions</span><span class="chip">' + t.duration + " minutes</span></div>" +
+      '<h3 style="margin:20px 0 4px;font-size:16px">Rules</h3><ul class="rules">' +
+      "<li>The <b>" + t.duration + "-minute</b> timer starts when you press <i>Start Test</i> and keeps running even if the page is closed.</li>" +
+      "<li>The test runs in <b>full screen</b>. Do not switch tabs, open other apps, or leave full screen.</li>" +
+      "<li>Switching tabs, opening another app, or using split screen — <b>even for a moment</b> — counts as a <b>violation</b> and is reported to your teacher. At violation " + t.maxLeaves +
+      ", the test is <b>locked</b> and only your <b>teacher</b> can reopen it (the timer keeps running).</li>" +
+      (isTouch ? "<li>Using a tablet or phone? Turn on <i>Do Not Disturb</i> and close all other apps before you start.</li>" : "") +
+      "<li>Mark questions you want to check again with the <b>Unsure</b> box.</li>" +
+      "<li>When time runs out, your answers are submitted automatically. Empty answers count as wrong (no minus points).</li>" +
+      (t.attempts === 1 ? "<li>You can take this test only <b>once</b>.</li>" : "") +
+      (t.instantFeedback ? "<li>After you choose an answer, you see right away whether it is <b>right or wrong</b>, with an explanation. You can't change it.</li>" : "") +
+      (t.passScore ? "<li>You <b>pass</b> with a score of at least <b>" + t.passScore + "</b>. Not passed yet? Try again until you pass to unlock the next level.</li>" : "") +
       "</ul>" +
-      (codeFor(t) ? '<label class="field" for="code">Kode tes' + (t.enc && t.enc.wraps.length > 1 && codeSlot(t, st) != null ? " untuk percobaan ke-" + (codeSlot(t, st) + 1) : "") +
-        ' (dari guru)</label><input type="text" id="code" autocomplete="off" placeholder="Masukkan kode">' : "") +
-      '<h3 style="margin:20px 0 6px;font-size:16px">Pemeriksaan perangkat</h3><ul class="precheck" id="pc"></ul>' +
-      '<label class="check"><input type="checkbox" id="closed"> <span>Saya sudah <b>menutup semua aplikasi dan tab lain</b>' +
-      (isTouch ? " (geser ke atas / tombol aplikasi terakhir, lalu tutup semuanya) dan menyalakan mode <i>Jangan Ganggu</i>" : "") + ".</span></label>" +
-      '<label class="check"><input type="checkbox" id="agree"> <span>Saya <b>' + TP.esc(st.name) + "</b> sudah membaca peraturan dan akan mengerjakan dengan jujur.</span></label>" +
-      '<button class="btn block" id="start" disabled>Mulai Tes</button>' +
-      '<button class="btn ghost block" id="back" style="margin-top:10px">Kembali</button></div>' + footer() + "</div>";
+      (codeFor(t) ? '<label class="field" for="code">Test code' + (t.enc && t.enc.wraps.length > 1 && codeSlot(t, st) != null ? " for attempt " + (codeSlot(t, st) + 1) : "") +
+        ' (from your teacher)</label><input type="text" id="code" autocomplete="off" placeholder="Enter the code">' : "") +
+      '<h3 style="margin:20px 0 6px;font-size:16px">Device check</h3><ul class="precheck" id="pc"></ul>' +
+      '<label class="check"><input type="checkbox" id="closed"> <span>I have <b>closed all other apps and tabs</b>' +
+      (isTouch ? " (swipe up or use the recent-apps button, then close them all) and turned on <i>Do Not Disturb</i>" : "") + ".</span></label>" +
+      '<label class="check"><input type="checkbox" id="agree"> <span>I, <b>' + TP.esc(st.name) + "</b>, have read the rules and will do this test honestly.</span></label>" +
+      '<button class="btn block" id="start" disabled>Start Test</button>' +
+      '<button class="btn ghost block" id="back" style="margin-top:10px">Back</button></div>' + footer() + "</div>";
     document.getElementById("chg").onclick = function (e) { e.preventDefault(); LS.del("tp_student"); renderLogin(); };
     var agree = document.getElementById("agree"), closedBox = document.getElementById("closed"), start = document.getElementById("start");
     var pcOk = false, pcRes = [];
@@ -399,12 +399,12 @@
       var need = codeFor(t);
       if (need && need.enc) {
         enterFs(); // ask for fullscreen while the tap still counts, then check the code
-        start.disabled = true; start.textContent = "Memeriksa kode…";
+        start.disabled = true; start.textContent = "Checking the code…";
         unlockTest(t, document.getElementById("code").value, codeSlot(t, st)).then(function (ok) {
-          start.disabled = false; start.textContent = "Mulai Tes";
+          start.disabled = false; start.textContent = "Start Test";
           if (!ok) {
             exitFs();
-            modal('<h3>Kode salah</h3><p>Tanyakan kode tes kepada gurumu.' + (codeSlot(t, st) ? " Setiap percobaan memakai kode yang berbeda." : "") +
+            modal('<h3>Wrong code</h3><p>Ask your teacher for the test code.' + (codeSlot(t, st) ? " Each attempt uses a different code." : "") +
               '</p><div class="actions"><button class="btn" id="mok">OK</button></div>');
             document.getElementById("mok").onclick = closeModal; return;
           }
@@ -415,7 +415,7 @@
       if (need) {
         var c = document.getElementById("code").value.trim().toUpperCase();
         if (TP.hash(c) !== need.hash) {
-          modal('<h3>Kode salah</h3><p>Tanyakan kode tes kepada gurumu.</p><div class="actions"><button class="btn" id="mok">OK</button></div>');
+          modal('<h3>Wrong code</h3><p>Ask your teacher for the test code.</p><div class="actions"><button class="btn" id="mok">OK</button></div>');
           document.getElementById("mok").onclick = closeModal; return;
         }
       }
@@ -453,12 +453,12 @@
       if (!isTouch) sw = screen.availWidth || screen.width;
       var full = w >= sw * 0.85;
       return [
-        { key: "aktif", ok: active, label: "Halaman tes sedang aktif",
-          fix: "Ketuk/klik halaman ini. Jangan ada aplikasi lain yang sedang dipakai." },
-        { key: "layar", ok: full, label: isTouch ? "Tidak ada layar terpisah (split screen)" : "Jendela browser penuh (maximize)",
-          fix: isTouch ? "Tutup aplikasi yang terbuka di samping atau di atas tes, lalu buka tes di layar penuh." : "Perbesar jendela browser sampai memenuhi layar, dan jangan menaruh jendela lain di sampingnya." },
-        { key: "tab", ok: n === 0, label: "Situs tes tidak terbuka di tab lain",
-          fix: "Tutup tab lain yang membuka situs tes ini (" + n + " tab terdeteksi)." }
+        { key: "aktif", ok: active, label: "The test page is the active window",
+          fix: "Tap or click this page. No other app should be in use." },
+        { key: "layar", ok: full, label: isTouch ? "No split screen" : "Browser window fills the screen (maximized)",
+          fix: isTouch ? "Close any app open beside or on top of the test, then open the test in full screen." : "Maximize the browser window so it fills the screen, with no other window beside it." },
+        { key: "tab", ok: n === 0, label: "The test site is not open in another tab",
+          fix: "Close the other tabs that have this test site open (" + n + " found)." }
       ];
     });
   }
@@ -506,20 +506,20 @@
     app.innerHTML =
       '<div class="cbt"><div class="cbt-top"><div class="t-title">' + TP.esc(T.title) + "</div>" +
       '<div class="t-student">' + TP.esc(S.name) + " · " + TP.esc(S.kelas) + "</div>" +
-      '<button class="btn-grid" id="gridBtn">Daftar Soal</button>' +
-      '<div class="timer" id="timer" title="Sisa waktu">--:--</div></div>' +
+      '<button class="btn-grid" id="gridBtn">Questions</button>' +
+      '<div class="timer" id="timer" title="Time left">--:--</div></div>' +
       '<div class="cbt-body">' +
       '<section class="pane passage-pane"><div class="pane-head" id="pHead"></div><div class="pane-body passage" id="passage"></div></section>' +
       '<section class="pane question-pane"><div class="pane-head" id="qHead"></div><div class="pane-body"><div class="qtext" id="qtext"></div><div class="options" id="opts"></div>' +
-      '<button class="clear-link" id="clear">Hapus pilihan</button></div>' +
-      '<div class="qnav"><button class="btn ghost" id="prev">‹ Sebelumnya</button>' +
-      '<label class="ragu"><input type="checkbox" id="flag"> Ragu-ragu</label>' +
-      '<button class="btn" id="next">Selanjutnya ›</button></div></section>' +
-      '<aside class="pane grid-pane" id="gridPane"><div class="pane-head"><b>Nomor Soal</b></div><div class="pane-body">' +
+      '<button class="clear-link" id="clear">Clear answer</button></div>' +
+      '<div class="qnav"><button class="btn ghost" id="prev">‹ Previous</button>' +
+      '<label class="ragu"><input type="checkbox" id="flag"> Unsure</label>' +
+      '<button class="btn" id="next">Next ›</button></div></section>' +
+      '<aside class="pane grid-pane" id="gridPane"><div class="pane-head"><b>Question numbers</b></div><div class="pane-body">' +
       '<div class="qgrid" id="qgrid"></div>' +
-      '<div class="legend"><span class="l-ans">Sudah dijawab</span><span class="l-flag">Ragu-ragu</span><span>Belum dijawab</span></div>' +
+      '<div class="legend"><span class="l-ans">Answered</span><span class="l-flag">Unsure</span><span>Not answered</span></div>' +
       '<div class="stat-line" id="stat"></div><div class="leave-count" id="leaves"></div>' +
-      '<button class="btn ok block" id="finish">Selesai &amp; Kumpulkan</button></div></aside></div></div>';
+      '<button class="btn ok block" id="finish">Finish &amp; Submit</button></div></aside></div></div>';
 
     var order = seq();
     if (T.sections.every(function (s) { return !(s.passage && s.passage.trim()); })) document.querySelector(".cbt").classList.add("no-passage");
@@ -556,18 +556,18 @@
     var shownSec = -1;
     function paintHead() {
       var g = order[pos];
-      document.getElementById("qHead").innerHTML = "<span>Soal <b>" + (pos + 1) + "</b> dari " + order.length + "</span>" +
-        (S.flags[g] ? '<span class="flag-badge">Ragu-ragu</span>' : "");
+      document.getElementById("qHead").innerHTML = "<span>Question <b>" + (pos + 1) + "</b> of " + order.length + "</span>" +
+        (S.flags[g] ? '<span class="flag-badge">Unsure</span>' : "");
     }
     function paintQuestion() {
       var g = order[pos], f = T._flat[g], sec = T.sections[f.si], q = Q(T, g);
       if (shownSec !== f.si) {
         var r = sectionRange(f.si), hasText = !!(sec.passage && sec.passage.trim());
         var dispIdx = S.secOrder.indexOf(f.si) + 1;
-        var secName = T.shuffleTexts ? "Teks " + dispIdx : (sec.title || "Teks " + dispIdx);
+        var secName = T.shuffleTexts ? "Text " + dispIdx : (sec.title || "Text " + dispIdx);
         document.getElementById("pHead").innerHTML = "<b>" + TP.esc(secName) + "</b><span>" +
-          (r[0] === r[1] ? "Soal " + r[0] : "Soal " + r[0] + "–" + r[1]) + "</span>";
-        document.getElementById("passage").innerHTML = hasText ? TP.passageHTML(sec.passage) : '<p class="muted">(Tidak ada bacaan untuk soal ini.)</p>';
+          (r[0] === r[1] ? "Question " + r[0] : "Questions " + r[0] + "–" + r[1]) + "</span>";
+        document.getElementById("passage").innerHTML = hasText ? TP.passageHTML(sec.passage) : '<p class="muted">(No reading text for this question.)</p>';
         document.getElementById("passage").scrollTop = 0;
         shownSec = f.si;
       }
@@ -575,16 +575,16 @@
       document.getElementById("qtext").innerHTML = TP.inline(q.q).replace(/\n/g, "<br>");
       var kind = kindOf(q), a = S.answers[g], optsEl = document.getElementById("opts");
       if (kind === "table") {
-        optsEl.innerHTML = '<table class="qtable"><tr><th>Pernyataan</th>' + q.cols.map(function (c) { return "<th>" + TP.esc(c) + "</th>"; }).join("") + "</tr>" +
+        optsEl.innerHTML = '<table class="qtable"><tr><th>Statement</th>' + q.cols.map(function (c) { return "<th>" + TP.esc(c) + "</th>"; }).join("") + "</tr>" +
           q.rows.map(function (row, r) {
             return "<tr><td>" + TP.inline(row) + "</td>" + q.cols.map(function (c, ci) {
               var on = a && a[r] === ci;
               return '<td class="pick"><button class="tick' + (on ? " sel" : "") + '" data-r="' + r + '" data-c="' + ci + '" aria-label="' + TP.esc(c) + '">' + (on ? "✓" : "") + "</button></td>";
             }).join("") + "</tr>";
-          }).join("") + '</table><p class="muted small">Pilih satu kolom untuk setiap baris. Soal ini benar hanya jika semua baris benar.</p>';
+          }).join("") + '</table><p class="muted small">Choose one column for each row. This question is correct only if every row is correct.</p>';
       } else if (kind === "multi") {
         var mo = S.optOrder[g], picked = Array.isArray(a) ? a : [];
-        optsEl.innerHTML = '<p class="muted small" style="margin:0">Pilih <b>semua</b> jawaban yang benar (bisa lebih dari satu).</p>' +
+        optsEl.innerHTML = '<p class="muted small" style="margin:0">Choose <b>all</b> correct answers (there may be more than one).</p>' +
           mo.map(function (orig, i) {
             var on = picked.indexOf(orig) > -1;
             return '<button class="opt multi' + (on ? " sel" : "") + '" data-m="' + orig + '"><span class="L">' + (on ? "✓" : TP.LETTERS[i]) +
@@ -593,12 +593,12 @@
       } else if (kind === "match") {
         var cur = Array.isArray(a) ? a : [];
         optsEl.innerHTML = '<div class="mchoices">' + q.choices.map(function (c, i) { return "<div><b>" + TP.LETTERS[i] + ".</b> " + TP.inline(c) + "</div>"; }).join("") + "</div>" +
-          '<table class="qtable"><tr><th>' + TP.esc(q.rowHead || "Item") + "</th><th>Jawaban</th></tr>" +
+          '<table class="qtable"><tr><th>' + TP.esc(q.rowHead || "Item") + "</th><th>Answer</th></tr>" +
           q.rows.map(function (row, r) {
             return "<tr><td>" + TP.inline(row) + '</td><td class="pick"><select class="msel" data-mr="' + r + '"><option value="">—</option>' +
               q.choices.map(function (_, ci) { return '<option value="' + ci + '"' + (cur[r] === ci ? " selected" : "") + ">" + TP.LETTERS[ci] + "</option>"; }).join("") +
               "</select></td></tr>";
-          }).join("") + '</table><p class="muted small">Pilih satu huruf untuk setiap baris. Ada pilihan yang tidak dipakai. Soal ini benar hanya jika semua baris benar.</p>';
+          }).join("") + '</table><p class="muted small">Choose one letter for each row. Some options are not used. This question is correct only if every row is correct.</p>';
         optsEl.querySelectorAll("select[data-mr]").forEach(function (sel) {
           sel.onchange = function () {
             var nx = Array.isArray(S.answers[g]) ? S.answers[g].slice() : q.rows.map(function () { return null; });
@@ -609,12 +609,12 @@
           };
         });
       } else if (kind === "essay") {
-        optsEl.innerHTML = '<textarea class="essay-in" id="essayIn" spellcheck="false" placeholder="Tulis jawabanmu di sini">' + TP.esc(a || "") + "</textarea>" +
+        optsEl.innerHTML = '<textarea class="essay-in" id="essayIn" spellcheck="false" placeholder="Write your answer here">' + TP.esc(a || "") + "</textarea>" +
           '<p class="muted small" id="wc"></p>';
         var ta = document.getElementById("essayIn"), wc = document.getElementById("wc");
         var upWc = function () {
           var nw = (ta.value.trim().match(/\S+/g) || []).length;
-          wc.textContent = nw + " kata" + (q.words ? " · target " + q.words + " kata" : "") + " · disimpan otomatis";
+          wc.textContent = nw + " words" + (q.words ? " · target " + q.words + " words" : "") + " · saved automatically";
         };
         upWc();
         ta.onfocus = function () { setTimeout(function () { ta.scrollIntoView({ block: "center" }); }, 350); };
@@ -623,8 +623,8 @@
           save(); paintGrid(); upWc();
         };
       } else if (kind === "short") {
-        optsEl.innerHTML = '<input type="text" class="short-in" id="shortIn" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ketik jawabanmu di sini" value="' + TP.esc(a || "") + '">' +
-          '<p class="muted small">Ketik jawaban persis seperti di teks. Huruf besar/kecil tidak berpengaruh.</p>';
+        optsEl.innerHTML = '<input type="text" class="short-in" id="shortIn" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type your answer here" value="' + TP.esc(a || "") + '">' +
+          '<p class="muted small">Type one word. Capital letters do not matter.</p>';
         var inp = document.getElementById("shortIn");
         inp.onfocus = function () { setTimeout(function () { inp.scrollIntoView({ block: "center" }); }, 350); };
         inp.oninput = function () {
@@ -639,13 +639,13 @@
           if (fb) c = orig === KEY[g] ? " good" : (a === orig ? " bad" : " dim");
           return '<button class="opt' + c + '" data-o="' + orig + '"' + (fb ? " disabled" : "") + '><span class="L">' +
             TP.LETTERS[i] + "</span><span>" + TP.inline(q.o[orig]) + "</span></button>";
-        }).join("") + (fb ? '<div class="fb ' + (a === KEY[g] ? "good" : "bad") + '"><b>' + (a === KEY[g] ? "✓ Benar!" : "✗ Belum tepat.") + "</b> " +
+        }).join("") + (fb ? '<div class="fb ' + (a === KEY[g] ? "good" : "bad") + '"><b>' + (a === KEY[g] ? "✓ Correct!" : "✗ Not quite.") + "</b> " +
           ((NOTES[g] && NOTES[g].e) ? TP.inline(NOTES[g].e) : "") + "</div>" : "");
       }
       document.getElementById("clear").style.visibility = (S.answers[g] == null || IF || kind === "essay") ? "hidden" : "visible";
       document.getElementById("flag").checked = !!S.flags[g];
       document.getElementById("prev").disabled = pos === 0;
-      document.getElementById("next").textContent = pos === order.length - 1 ? "Selesai ›" : "Selanjutnya ›";
+      document.getElementById("next").textContent = pos === order.length - 1 ? "Finish ›" : "Next ›";
     }
     document.getElementById("opts").onclick = function (e) {
       var g = order[pos], t = e.target.closest("[data-r]");
@@ -676,9 +676,9 @@
         var st = a && IF ? (S.answers[g] === KEY[g] ? " ans" : " wrong") : (a ? " ans" : "");
         b.className = "qn" + (fl ? " flag" : st) + (i === pos ? " cur" : "");
       });
-      document.getElementById("stat").textContent = "Dijawab " + answered + "/" + order.length + (flagged ? " · Ragu-ragu " + flagged : "");
+      document.getElementById("stat").textContent = "Answered " + answered + "/" + order.length + (flagged ? " · Unsure " + flagged : "");
       var lv = document.getElementById("leaves");
-      lv.textContent = "Pelanggaran: " + S.leaves.length + " / " + T.maxLeaves;
+      lv.textContent = "Violations: " + S.leaves.length + " / " + T.maxLeaves;
       lv.className = "leave-count" + (S.leaves.length ? " hot" : "");
     }
     window.__tpPaint = function () { paintGrid(); };
@@ -695,7 +695,7 @@
     var el = document.getElementById("timer");
     function upd() {
       var rem = S.end - Date.now();
-      if (rem <= 0) { el.textContent = "00:00"; submit("Waktu habis"); return; }
+      if (rem <= 0) { el.textContent = "00:00"; submit("Time ran out"); return; }
       var s = Math.ceil(rem / 1000), m = Math.floor(s / 60);
       el.textContent = (m < 10 ? "0" : "") + m + ":" + ("0" + (s % 60)).slice(-2);
       el.className = "timer" + (rem <= 60000 ? " danger" : rem <= 5 * 60000 ? " warn" : "");
@@ -710,11 +710,11 @@
   }
   function askFinish() {
     var c = counts();
-    confirmBox("Kumpulkan jawaban?",
-      "<p>Dijawab: <b>" + c.answered + "</b> dari " + T._count + "<br>Belum dijawab: <b>" + c.empty + "</b>" +
-      (c.flagged ? "<br>Masih ragu-ragu: <b>" + c.flagged + "</b>" : "") +
-      '</p><p class="muted small">Setelah dikumpulkan, jawaban tidak bisa diubah.</p>',
-      "Ya, kumpulkan", "Periksa lagi", function () { submit("Dikumpulkan siswa"); }, "ok");
+    confirmBox("Submit your answers?",
+      "<p>Answered: <b>" + c.answered + "</b> of " + T._count + "<br>Not answered: <b>" + c.empty + "</b>" +
+      (c.flagged ? "<br>Still marked unsure: <b>" + c.flagged + "</b>" : "") +
+      '</p><p class="muted small">After you submit, you can\'t change your answers.</p>',
+      "Yes, submit", "Check again", function () { submit("Submitted by student"); }, "ok");
   }
 
   /* ---------------- anti-cheat ---------------- */
@@ -728,7 +728,7 @@
     save();
     if (window.__tpPaint) window.__tpPaint();
     if (S.leaves.length >= T.maxLeaves) {
-      if (!lockHash()) { submit("Otomatis: keluar " + S.leaves.length + "x"); return; } // no lock passcode set: old behaviour
+      if (!lockHash()) { submit("Auto-submitted: left " + S.leaves.length + "x"); return; } // no lock passcode set: old behaviour
       S.locked = true; save(); showLock(); return;
     }
     showLeaveWarning(reason);
@@ -737,17 +737,17 @@
   function showLock() {
     if (!running || !S || S.submitted) return;
     exitFs();
-    var m = modal("<h3>🔒 Tes terkunci</h3>" +
-      '<div class="big">' + S.leaves.length + " pelanggaran</div>" +
-      "<p>Kamu sudah keluar dari tes " + S.leaves.length + " kali. Tes dikunci dan semua pelanggaran sudah dicatat untuk guru.</p>" +
-      "<p><b>Panggil gurumu.</b> Hanya guru yang bisa membuka tes ini lagi dengan kode pembuka. Waktu tetap berjalan.</p>" +
-      '<input type="password" id="lockPin" autocomplete="off" placeholder="Kode pembuka dari guru">' +
+    var m = modal("<h3>🔒 Test locked</h3>" +
+      '<div class="big">' + S.leaves.length + " violations</div>" +
+      "<p>You have left the test " + S.leaves.length + " times. The test is locked, and every violation has been reported to your teacher.</p>" +
+      "<p><b>Call your teacher.</b> Only your teacher can reopen this test with the unlock code. The timer keeps running.</p>" +
+      '<input type="password" id="lockPin" autocomplete="off" placeholder="Unlock code (teacher)">' +
       '<p class="muted small" id="lockMsg" style="min-height:1.2em"></p>' +
-      '<div class="actions"><button class="btn" id="lockOk">Buka tes (guru)</button></div>', "alert lock");
+      '<div class="actions"><button class="btn" id="lockOk">Unlock test (teacher)</button></div>', "alert lock");
     var inp = m.querySelector("#lockPin");
     function tryIt() {
       if (TP.hash(inp.value.trim().toUpperCase()) !== lockHash()) {
-        m.querySelector("#lockMsg").textContent = "Kode pembuka salah."; inp.value = "";
+        m.querySelector("#lockMsg").textContent = "Wrong unlock code."; inp.value = "";
         S.badPins = (S.badPins || 0) + 1; save(); return;
       }
       S.locked = false; S.unlocks = (S.unlocks || 0) + 1; save();
@@ -761,11 +761,11 @@
     if (S && S.locked) return showLock();
     if (S.locked) return showLock();
     var left = T.maxLeaves - S.leaves.length;
-    var m = modal("<h3>⚠️ Peringatan pelanggaran</h3>" +
+    var m = modal("<h3>⚠️ Violation warning</h3>" +
       '<div class="big">' + S.leaves.length + " / " + T.maxLeaves + "</div>" +
-      "<p>Kamu terdeteksi <b>" + TP.esc(reason) + "</b>. Kejadian ini sudah dicatat untuk guru.</p>" +
-      "<p>Sisa " + left + " kali lagi sebelum tes <b>dikunci</b> dan hanya bisa dibuka oleh guru.</p>" +
-      '<div class="actions"><button class="btn" id="backIn">Kembali ke tes</button></div>', "alert");
+      "<p>Detected: <b>" + TP.esc(reason) + "</b>. This has been reported to your teacher.</p>" +
+      "<p>" + left + " more " + (left === 1 ? "time" : "times") + " and the test will be <b>locked</b>. Only your teacher can unlock it.</p>" +
+      '<div class="actions"><button class="btn" id="backIn">Back to the test</button></div>', "alert");
     m.querySelector("#backIn").onclick = function () { if (fsSupported && !isFs()) enterFs(); closeModal(); };
   }
   /* Every tab or app switch counts, however short (only a flicker under GRACE is ignored).
@@ -788,26 +788,26 @@
     var away = Date.now() - awayAt; awayAt = 0;
     if (!running || !S || S.submitted) return;
     keepAwake();
-    if (away >= GRACE) onLeave(awayWhy + " (" + Math.max(1, Math.round(away / 1000)) + " detik)");
+    if (away >= GRACE) onLeave(awayWhy + " (" + Math.max(1, Math.round(away / 1000)) + " sec)");
     else { S.shortLeaves = (S.shortLeaves || 0) + 1; save(); }
   }
   document.addEventListener("visibilitychange", function () {
-    if (document.hidden) goneAway("pindah tab / membuka aplikasi lain"); else cameBack();
+    if (document.hidden) goneAway("switched tab / opened another app"); else cameBack();
   });
   window.addEventListener("blur", function () {
     if (isTouch) return; // tablets: notifications/keyboard steal focus — ignore
-    setTimeout(function () { if (running && !document.hidden && !document.hasFocus()) goneAway("keluar dari jendela tes"); }, 300);
+    setTimeout(function () { if (running && !document.hidden && !document.hasFocus()) goneAway("left the test window"); }, 300);
   });
   window.addEventListener("focus", function () { if (!document.hidden) cameBack(); });
   function fsChange() {
     if (!running || !fsSupported || isFs() || document.hidden) return;
     if (isTouch) { fsButton(true); return; } // gestures/keyboard exit fullscreen on tablets: offer a button, never block typing
-    onLeave("keluar dari layar penuh");
+    onLeave("left full screen");
   }
   function askFullscreen() {
     if (modalRoot.innerHTML) return;
-    var m = modal("<h3>Layar penuh</h3><p>Tes dikerjakan dalam layar penuh. Ketuk tombol di bawah untuk kembali.</p>" +
-      '<div class="actions"><button class="btn" id="fsBack">Kembali ke layar penuh</button></div>');
+    var m = modal("<h3>Full screen</h3><p>The test runs in full screen. Tap the button below to go back.</p>" +
+      '<div class="actions"><button class="btn" id="fsBack">Back to full screen</button></div>');
     m.querySelector("#fsBack").onclick = function () { enterFs(); closeModal(); };
   }
   function fsButton(show) {
@@ -815,7 +815,7 @@
     if (!show || !running || isFs()) { if (b) b.remove(); return; }
     if (b) return;
     b = document.createElement("button");
-    b.id = "fsBtn"; b.className = "fs-btn"; b.type = "button"; b.textContent = "⤢ Layar penuh";
+    b.id = "fsBtn"; b.className = "fs-btn"; b.type = "button"; b.textContent = "⤢ Full screen";
     b.onclick = function () { enterFs(); b.remove(); };
     document.body.appendChild(b);
   }
@@ -838,7 +838,7 @@
       var o = screenOrient(), w = window.innerWidth;
       if (!baseW[o]) { baseW[o] = w; return; } // first time in this orientation (rotated)
       if (w > baseW[o]) baseW[o] = w;
-      if (w < baseW[o] * 0.75) { if (!splitOn) { splitOn = true; onLeave("membuka layar terpisah / jendela lain di samping tes"); } }
+      if (w < baseW[o] * 0.75) { if (!splitOn) { splitOn = true; onLeave("opened split screen / another window beside the test"); } }
       else splitOn = false;
     }, 700);
   });
@@ -960,10 +960,10 @@
   function renderResult(t, r, reason, sendState, rec) {
     var st = LS.get("tp_student", null);
     var sendMsg = {
-      sending: '<div class="sent no">Mengirim skor ke guru…</div>',
-      sent: '<div class="sent ok">✓ Skor sudah dikirim ke guru.</div>',
-      failed: '<div class="sent no">Skor belum terkirim karena internet terputus. Jangan hapus data browser. Skor akan dikirim otomatis saat halaman ini dibuka lagi dengan internet.</div>',
-      nolink: '<div class="sent no">Mode uji coba: skor tidak dikirim (link Google Form belum diisi).</div>'
+      sending: '<div class="sent no">Sending your score to your teacher…</div>',
+      sent: '<div class="sent ok">✓ Your score has been sent to your teacher.</div>',
+      failed: '<div class="sent no">Your score has not been sent yet because the internet is down. Don\'t clear your browser data. It will be sent automatically next time this page opens with internet.</div>',
+      nolink: '<div class="sent no">Test mode: score not sent (the Google Form link is empty).</div>'
     }[sendState] || "";
     var body;
     if (t.showResult !== false) {
@@ -975,20 +975,20 @@
       if (t.passScore) {
         var nextLv = TESTS.filter(function (x) { return x.requires && x.requires.test === t.id; })[0];
         passMsg = r.score >= t.passScore
-          ? '<div class="sent ok big-msg">🎉 Lulus! ' + (nextLv ? "<b>" + TP.esc(nextLv.title) + "</b> sekarang terbuka." : "Kamu sudah menyelesaikan level terakhir!") + "</div>"
-          : '<div class="sent no big-msg">Belum lulus. Perlu skor <b>' + t.passScore + "</b> untuk membuka level berikutnya. Lihat pembahasan, lalu coba lagi!</div>";
+          ? '<div class="sent ok big-msg">🎉 Passed! ' + (nextLv ? "<b>" + TP.esc(nextLv.title) + "</b> is now open." : "You have finished the last level!") + "</div>"
+          : '<div class="sent no big-msg">Not passed yet. You need a score of <b>' + t.passScore + "</b> to unlock the next level. Read the explanations, then try again!</div>";
       }
-      body = passMsg + '<p class="muted" style="margin:0">Skor kamu</p><div class="score-big">' + r.score + "</div>" +
-        '<p style="margin:0">Benar <b>' + r.correct + "</b> dari " + r.total + ' soal pilihan</p>' +
-        (r.essays ? '<p class="muted small" style="margin:4px 0 0">Jawaban esai sudah dikirim ke guru dan akan dinilai terpisah.</p>' : "") +
+      body = passMsg + '<p class="muted" style="margin:0">Your score</p><div class="score-big">' + r.score + "</div>" +
+        '<p style="margin:0"><b>' + r.correct + "</b> of " + r.total + ' questions correct</p>' +
+        (r.essays ? '<p class="muted small" style="margin:4px 0 0">Your essay has been sent to your teacher and will be marked separately.</p>' : "") +
         '<p class="muted small">' + TP.esc(reason) + "</p>" +
-        '<h3 style="font-size:16px;margin:22px 0 0">Hasil per tipe soal</h3><div class="bars">' + bars + "</div>";
+        '<h3 style="font-size:16px;margin:22px 0 0">Results by question type</h3><div class="bars">' + bars + "</div>";
     } else {
-      body = "<p>Jawabanmu sudah dikumpulkan. Hasil akan diumumkan oleh guru.</p>";
+      body = "<p>Your answers have been submitted. Your teacher will announce the results.</p>";
     }
     app.innerHTML = topbar(st) + '<div class="page"><div class="card"><h2>' + TP.esc(t.title) + "</h2>" + body + sendMsg +
-      (rec && rec.rev ? '<button class="btn ok block" id="rev">' + (t.rv ? "Lihat pembahasan" : "Lihat jawaban yang benar") + '</button><div style="height:10px"></div>' : "") +
-      '<button class="btn block" id="home">Kembali ke daftar tes</button></div>' + footer() + "</div>";
+      (rec && rec.rev ? '<button class="btn ok block" id="rev">' + (t.rv ? "See explanations" : "See the correct answers") + '</button><div style="height:10px"></div>' : "") +
+      '<button class="btn block" id="home">Back to tests</button></div>' + footer() + "</div>";
     var rb = document.getElementById("rev"); if (rb) rb.onclick = function () { renderReview(t, rec); };
     var chg = document.getElementById("chg"); if (chg) chg.onclick = function (e) { e.preventDefault(); LS.del("tp_student"); renderLogin(); };
     document.getElementById("home").onclick = renderHome;
@@ -1013,55 +1013,55 @@
         chips += '<a class="rchip ' + (essay ? "" : ok ? "good" : "bad") + '" href="#rq' + n + '">' + n + "</a>";
         var body = "";
         if (essay) {
-          body = '<div class="ropt mine"><span class="tag">Jawabanmu</span> ' + (isAnswered(q, a) ? TP.esc(a).replace(/\n/g, "<br>") : "<i>(kosong)</i>") + "</div>";
+          body = '<div class="ropt mine"><span class="tag">Your answer</span> ' + (isAnswered(q, a) ? TP.esc(a).replace(/\n/g, "<br>") : "<i>(empty)</i>") + "</div>";
         } else if (kind === "multi") {
           var mo = (rv.optOrder && rv.optOrder[g]) || q.o.map(function (_, i) { return i; }), mine = Array.isArray(a) ? a : [];
           body = mo.map(function (orig, i) {
             var isKey = (key[g] >> orig) & 1, isMine = mine.indexOf(orig) > -1;
             var cls = isKey ? "right" : (isMine ? "mine bad" : "");
-            var tag = isKey ? (isMine ? "Jawabanmu · Kunci" : "Kunci") : (isMine ? "Jawabanmu" : "");
+            var tag = isKey ? (isMine ? "Your answer · Key" : "Key") : (isMine ? "Your answer" : "");
             return '<div class="ropt ' + cls + '"><span class="L">' + TP.LETTERS[i] + "</span><span>" + TP.inline(q.o[orig]) + "</span>" +
               (tag ? '<span class="tag">' + tag + "</span>" : "") + "</div>";
-          }).join("") + '<p class="muted small">Jawaban benar: semua pilihan bertanda <b>Kunci</b>.</p>';
+          }).join("") + '<p class="muted small">Correct answer: every option marked <b>Key</b>.</p>';
         } else if (kind === "match") {
           var lab = function (ci) { return ci == null ? "—" : TP.LETTERS[ci] + ". " + TP.esc(q.choices[ci]); };
-          body = '<table class="qtable rtable"><tr><th>' + TP.esc(q.rowHead || "Item") + "</th><th>Jawabanmu</th><th>Kunci</th></tr>" +
+          body = '<table class="qtable rtable"><tr><th>' + TP.esc(q.rowHead || "Item") + "</th><th>Your answer</th><th>Key</th></tr>" +
             q.rows.map(function (row, r) {
               var mineR = a ? a[r] : null, hit = mineR === key[g][r];
               return "<tr><td>" + TP.inline(row) + '</td><td class="' + (hit ? "good" : "bad") + '">' + lab(mineR) + "</td><td>" + lab(key[g][r]) + "</td></tr>";
             }).join("") + "</table>";
         } else if (kind === "table") {
-          body = '<table class="qtable rtable"><tr><th>Pernyataan</th><th>Jawabanmu</th><th>Kunci</th></tr>' +
+          body = '<table class="qtable rtable"><tr><th>Statement</th><th>Your answer</th><th>Key</th></tr>' +
             q.rows.map(function (row, r) {
               var mine = a && a[r] != null ? q.cols[a[r]] : "—", right = q.cols[(key[g] >> r) & 1], hit = a && a[r] === ((key[g] >> r) & 1);
               return "<tr><td>" + TP.inline(row) + '</td><td class="' + (hit ? "good" : "bad") + '">' + TP.esc(mine) + "</td><td>" + TP.esc(right) + "</td></tr>";
             }).join("") + "</table>";
         } else if (kind === "short") {
-          body = '<div class="ropt ' + (ok ? "mine good" : "mine bad") + '"><span class="tag">Jawabanmu</span> ' + (isAnswered(q, a) ? TP.esc(a) : "<i>(kosong)</i>") + "</div>" +
-            (ok ? "" : '<div class="ropt right"><span class="tag">Kunci</span> ' + TP.esc(note.a || (Array.isArray(key[g]) ? key[g].join(" / ") : "")) + "</div>");
+          body = '<div class="ropt ' + (ok ? "mine good" : "mine bad") + '"><span class="tag">Your answer</span> ' + (isAnswered(q, a) ? TP.esc(a) : "<i>(empty)</i>") + "</div>" +
+            (ok ? "" : '<div class="ropt right"><span class="tag">Key</span> ' + TP.esc(note.a || (Array.isArray(key[g]) ? key[g].join(" / ") : "")) + "</div>");
         } else {
           var oo = (rv.optOrder && rv.optOrder[g]) || q.o.map(function (_, i) { return i; });
           body = oo.map(function (orig, i) {
             var cls = orig === key[g] ? "right" : (orig === a ? "mine bad" : "");
-            var tag = orig === key[g] ? (orig === a ? "Jawabanmu · Kunci" : "Kunci") : (orig === a ? "Jawabanmu" : "");
+            var tag = orig === key[g] ? (orig === a ? "Your answer · Key" : "Key") : (orig === a ? "Your answer" : "");
             return '<div class="ropt ' + cls + '"><span class="L">' + TP.LETTERS[i] + "</span><span>" + TP.inline(q.o[orig]) + "</span>" +
               (tag ? '<span class="tag">' + tag + "</span>" : "") + "</div>";
-          }).join("") + (isAnswered(q, a) ? "" : '<p class="muted small">Kamu tidak menjawab soal ini.</p>');
+          }).join("") + (isAnswered(q, a) ? "" : '<p class="muted small">You did not answer this question.</p>');
         }
-        block += '<div class="ritem" id="rq' + n + '"><div class="rhead"><b>Soal ' + n + '</b><span class="rbadge ' + (essay ? "" : ok ? "good" : "bad") + '">' +
-          (essay ? "Dinilai guru" : ok ? "✓ Benar" : "✗ Salah") + "</span>" + (q.t ? '<span class="muted small">' + TP.esc(q.t) + "</span>" : "") + "</div>" +
+        block += '<div class="ritem" id="rq' + n + '"><div class="rhead"><b>Question ' + n + '</b><span class="rbadge ' + (essay ? "" : ok ? "good" : "bad") + '">' +
+          (essay ? "Marked by teacher" : ok ? "✓ Correct" : "✗ Wrong") + "</span>" + (q.t ? '<span class="muted small">' + TP.esc(q.t) + "</span>" : "") + "</div>" +
           '<div class="qtext">' + TP.inline(q.q).replace(/\n/g, "<br>") + "</div>" + body +
-          (note.e ? '<div class="rnote"><b>Pembahasan:</b> ' + TP.inline(note.e) + "</div>" : "") + "</div>";
+          (note.e ? '<div class="rnote"><b>Explanation:</b> ' + TP.inline(note.e) + "</div>" : "") + "</div>";
       });
-      items += '<div class="card rsec"><h3>Teks ' + (di + 1) + (first === n ? " · Soal " + n : " · Soal " + first + "–" + n) + "</h3>" +
-        (sec.passage && sec.passage.trim() ? '<details class="rpass"><summary>Lihat teks</summary><div class="passage">' + TP.passageHTML(sec.passage) + "</div></details>" : "") +
+      items += '<div class="card rsec"><h3>Text ' + (di + 1) + (first === n ? " · Question " + n : " · Questions " + first + "–" + n) + "</h3>" +
+        (sec.passage && sec.passage.trim() ? '<details class="rpass"><summary>Show the text</summary><div class="passage">' + TP.passageHTML(sec.passage) + "</div></details>" : "") +
         block + "</div>";
     });
-    app.innerHTML = topbar(st) + '<div class="page"><div class="card"><h2>' + (t.rv ? "Pembahasan" : "Jawaban benar") + " — " + TP.esc(t.title) + "</h2>" +
-      "<p>Skor <b>" + rec.score + "</b> · benar <b>" + rec.correct + "</b> dari " + rec.total + "</p>" +
-      '<p class="muted small">Ketuk nomor untuk melompat ke soal. Hijau = benar, merah = salah. Nomor mengikuti urutan soal saat kamu mengerjakan.</p>' +
+    app.innerHTML = topbar(st) + '<div class="page"><div class="card"><h2>' + (t.rv ? "Explanations" : "Correct answers") + " — " + TP.esc(t.title) + "</h2>" +
+      "<p>Score <b>" + rec.score + "</b> · <b>" + rec.correct + "</b> of " + rec.total + " correct</p>" +
+      '<p class="muted small">Tap a number to jump to that question. Green = correct, red = wrong. Numbers follow the order you saw in the test.</p>' +
       '<div class="rchips">' + chips + "</div></div>" + items +
-      '<button class="btn block" id="home">Kembali ke daftar tes</button>' + footer() + "</div>";
+      '<button class="btn block" id="home">Back to tests</button>' + footer() + "</div>";
     window.scrollTo(0, 0);
     var chg = document.getElementById("chg"); if (chg) chg.onclick = function (e) { e.preventDefault(); LS.del("tp_student"); renderLogin(); };
     document.getElementById("home").onclick = renderHome;
@@ -1076,24 +1076,24 @@
     if (!t || !s || s.submitted || !t.sections) { LS.del("tp_active"); return false; }
     T = t; S = s;
     LS.set("tp_student", { kelas: s.kelas, name: s.name });
-    if (Date.now() >= S.end) { running = true; submit("Waktu habis"); return true; }
+    if (Date.now() >= S.end) { running = true; submit("Time ran out"); return true; }
     var gone = S.unloadAt ? Date.now() - S.unloadAt : Infinity, counted = !(gone <= RELOAD_GRACE);
     delete S.unloadAt;
-    if (counted) S.leaves.push({ at: Date.now(), r: "memuat ulang / menutup halaman" + (isFinite(gone) ? " (" + Math.round(gone / 1000) + " detik)" : "") });
+    if (counted) S.leaves.push({ at: Date.now(), r: "reloaded / closed the page" + (isFinite(gone) ? " (" + Math.round(gone / 1000) + " sec)" : "") });
     else S.reloads = (S.reloads || 0) + 1; // quick refresh (e.g. accidental swipe on a tablet): noted, not a violation
     save();
     if (S.leaves.length >= T.maxLeaves) {
-      if (!lockHash()) { running = true; submit("Otomatis: keluar " + S.leaves.length + "x"); return true; }
+      if (!lockHash()) { running = true; submit("Auto-submitted: left " + S.leaves.length + "x"); return true; }
       if (counted) S.locked = true; save();
     }
     var left = Math.max(0, T.maxLeaves - S.leaves.length);
-    app.innerHTML = topbar(null) + '<div class="page"><div class="card"><h2>Tes sedang berlangsung</h2>' +
+    app.innerHTML = topbar(null) + '<div class="page"><div class="card"><h2>Test in progress</h2>' +
       "<p><b>" + TP.esc(S.name) + "</b> · " + TP.esc(S.kelas) + "<br>" + TP.esc(T.title) + "</p>" +
-      (S.locked ? '<div class="banner warn">🔒 Tes terkunci karena ' + S.leaves.length + " pelanggaran. Panggil gurumu untuk membukanya. Waktu tetap berjalan.</div>"
-        : counted ? '<div class="banner warn">Halaman tes ditutup atau dimuat ulang. Ini dihitung sebagai pelanggaran ke-' + S.leaves.length +
-      " (sisa " + left + "). Waktu tetap berjalan.</div>"
-        : '<div class="banner">Halaman termuat ulang. Karena langsung kembali, ini <b>tidak</b> dihitung pelanggaran (tetap dicatat untuk guru). Waktu tetap berjalan.</div>') +
-      '<button class="btn block" id="resume">Lanjutkan Tes</button></div></div>';
+      (S.locked ? '<div class="banner warn">🔒 The test is locked after ' + S.leaves.length + " violations. Call your teacher to unlock it. The timer keeps running.</div>"
+        : counted ? '<div class="banner warn">The test page was closed or reloaded. This counts as violation ' + S.leaves.length +
+      " (" + left + " left). The timer keeps running.</div>"
+        : '<div class="banner">The page reloaded. Because you came straight back, this is <b>not</b> counted as a violation (your teacher can still see it). The timer keeps running.</div>') +
+      '<button class="btn block" id="resume">Continue the Test</button></div></div>';
     document.getElementById("resume").onclick = function () { if (!S.locked) enterFs(); runTest(); if (S.locked) showLock(); };
     return true;
   }
