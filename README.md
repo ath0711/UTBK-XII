@@ -118,8 +118,18 @@ Other test settings:
 
 To hide a test without deleting it, remove its line from `config.js`.
 
+## ASAS 26/27 (locked test with an opening date)
+`tests/asas-2627.js` is the end-of-semester test: 3 texts, 25 questions, 60 minutes, for XII Paket A, C, D (and Guru).
+- **Hidden until 1 December 2026, 00:00 WITA.** Before that, students don't see it in their list at all. Guru (uji coba) sees it with a yellow "Guru saja" label so you can try it.
+- **Locked with an access code.** The questions and the answer key are encrypted inside the file. Without the code nobody can read them, not even by opening the file on GitHub. Announce the code in class when the test starts. Capital letters and spaces don't matter.
+- **New question types:** choose-all (complex multiple choice), matching (a letter for each row), and essay. The error-finding questions keep their A–D order; other options are shuffled per student.
+- **Scoring:** the score (0–100) counts the 24 auto-marked questions. The essay (no. 25) is marked by you: its full text is at the end of the `Jawaban` column, and `Catatan` says "Esai belum dinilai".
+- Students don't see their score or pembahasan at the end (`showResult: false`), and get one attempt. "Buka lagi (guru)" still works with the teacher PIN.
+- To change the code, the date, or the classes, ask Claude to rebuild the file (the source is in `teacher-only/asas-2627/`). Changing the date or classes directly in `config.js` won't work for this test.
+
 ## Honest limits (good to know)
 - **A website cannot physically block other tabs or apps.** What it can do is detect them: fullscreen exits, tab or app switches, and closing or reloading the page all count as violations, are recorded with the time, and the 3rd one submits the test. On iPhones, fullscreen isn't supported, but tab and app switching is still detected.
 - **The one-attempt limit is stored on each device.** A student who changes device or clears browser data could start again. Every attempt still arrives in your Sheet with its time, so a second row for the same student is easy to spot.
-- Answer keys in the test files are encoded, not readable as plain letters. Explanations are never uploaded.
+- Answer keys in the test files are encoded, not readable as plain letters. Explanations are never uploaded. ASAS 26/27 goes further: its questions and key are encrypted with the access code.
+- The opening date uses the clock of the student's device. A student who changes their device date could see the ASAS card early, but still can't open it without the code.
 - If the internet drops when a student submits, the score is saved on the device and sent automatically the next time the page is opened with internet.

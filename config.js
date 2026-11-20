@@ -168,6 +168,10 @@ window.APP_CONFIG = {
     "tests/diagnostic-1.js",
     "tests/paket-1-lbe.js",   // Latihan Paket 1 (XII Paket A, C, D + Guru) — with pembahasan
 
+    /* ---- ASAS 26/27 (XII Paket A, C, D + Guru). Locked: students only see it from 1 Dec 2026, 00:00 WITA,
+       and the questions open only with the access code (the code can't be read from any file). ---- */
+    "tests/asas-2627.js",
+
     /* ---- VOCAB LEVELS (XII Paket A, C, D, KAIST, Edinburgh, Harvard + Guru). Each level opens after a score of 80 on the one before. ---- */
     "tests/vocab-l1.js",
     "tests/vocab-l2.js",

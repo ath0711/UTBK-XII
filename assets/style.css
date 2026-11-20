@@ -279,3 +279,11 @@ body.in-test { overflow: hidden; user-select: none; -webkit-user-select: none; }
 .test-card.locked { opacity: .7; background: #f7f8fa; }
 .chip.warnc { background: var(--warn-soft); color: #8a6100; font-weight: 600; }
 .big-msg { font-size: 17px; margin: 0 0 14px; }
+
+/* ---- choose-all, matching, essay, Arabic verses (ASAS 26/27 and later) ---- */
+.opt.multi .L { border-radius: 6px; }
+.mchoices { display: grid; gap: 5px; margin: 0 0 12px; font-size: 15px; background: #f7f9fc; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.msel { font-size: 16px; padding: 6px 8px; border-radius: 6px; border: 1.5px solid var(--line); min-width: 74px; background: #fff; }
+.essay-in { width: 100%; box-sizing: border-box; min-height: 260px; font: inherit; font-size: 16px; line-height: 1.6; padding: 12px; border: 1.5px solid var(--line); border-radius: 8px; resize: vertical; }
+.essay-in:focus { outline: none; border-color: var(--brand-2); }
+.ar { display: block; direction: rtl; text-align: right; font-size: 1.5em; line-height: 2; margin: 8px 0; font-family: "Amiri", "Scheherazade New", "Noto Naskh Arabic", "Traditional Arabic", "Geeza Pro", serif; }

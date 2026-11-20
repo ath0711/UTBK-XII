@@ -42,6 +42,7 @@
     } catch (e) { return null; }
   }
   function codeFor(t) { // config.js accessCodes win over the code inside the test file
+    if (t.enc) return { enc: true }; // locked test: the code is the key that opens the questions
     var ac = C.accessCodes || {};
     if (Object.prototype.hasOwnProperty.call(ac, t.id)) {
       var raw = String(ac[t.id] || "").trim();
@@ -55,28 +56,62 @@
     return (C.unlimitedAttemptsFor || []).some(function (n) { return n === st.name; });
   }
 
+  /* ---------------- opening date + locked (encrypted) tests ---------------- */
+  function openTime(t) { var ms = t.openFrom ? Date.parse(t.openFrom) : 0; return isNaN(ms) ? 0 : ms; }
+  function notYetOpen(t) { return openTime(t) > Date.now(); }
+  function fmtDate(ms) {
+    var d = new Date(ms), mo = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+    return d.getDate() + " " + mo[d.getMonth()] + " " + d.getFullYear() + ", " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+  }
+  var UNLOCK = "tp_unlock|";
+  function normCode(c) { return String(c || "").replace(/\s+/g, "").toUpperCase(); }
+  function unlockTest(t, code) { // decrypts the questions with the access code; false = wrong code
+    var norm = normCode(code);
+    if (!t.enc) return Promise.resolve(true);
+    if (t.sections) return Promise.resolve(LS.get(UNLOCK + t.id, null) === norm);
+    if (!(window.crypto && crypto.subtle && window.TextEncoder)) return Promise.resolve(false);
+    function bytes(b64) { var bin = atob(b64), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+    return crypto.subtle.importKey("raw", new TextEncoder().encode(norm), "PBKDF2", false, ["deriveKey"]).then(function (base) {
+      return crypto.subtle.deriveKey({ name: "PBKDF2", salt: bytes(t.enc.salt), iterations: t.enc.iter, hash: "SHA-256" },
+        base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+    }).then(function (key) {
+      return crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes(t.enc.iv) }, key, bytes(t.enc.data));
+    }).then(function (buf) {
+      var p = JSON.parse(new TextDecoder().decode(buf));
+      t.sections = p.sections; t._keys = p.keys; buildFlat(t);
+      LS.set(UNLOCK + t.id, norm);
+      return true;
+    }).catch(function () { return false; });
+  }
+
   /* ---------------- test prep ---------------- */
   function prep(t) {
     t.duration = Number(t.duration) || 30;
     t.maxLeaves = Number((C.antiCheat || {}).maxViolations) || Number(t.maxLeaves) || 3;
     t.attempts = Number(t.attempts) || 1;
+    buildFlat(t);
+    return t;
+  }
+  function buildFlat(t) {
     t._flat = []; // original order: {si, qi, g}
+    if (!t.sections) { t._count = Number(t.count) || 0; return; } // locked test: questions arrive after the code
     t.sections.forEach(function (s, si) {
       s._start = t._flat.length;
       s.questions.forEach(function (q, qi) { t._flat.push({ si: si, qi: qi, g: t._flat.length }); });
     });
     t._count = t._flat.length;
-    return t;
   }
   function Q(t, g) { var f = t._flat[g]; return t.sections[f.si].questions[f.qi]; }
 
-  /* question kinds: "mc" (A–E, default), "table" (one choice per row), "short" (typed answer) */
+  /* question kinds: "mc" (A–E, default), "table" (one choice per row), "short" (typed answer),
+     "multi" (choose all correct), "match" (a letter for each row), "essay" (written, marked by the teacher) */
   function kindOf(q) { return q.kind || "mc"; }
   function isAnswered(q, a) {
     if (a == null) return false;
     var k = kindOf(q);
-    if (k === "table") return a.some(function (x) { return x != null; });
-    if (k === "short") return String(a).trim() !== "";
+    if (k === "table" || k === "match") return a.some(function (x) { return x != null; });
+    if (k === "multi") return a.length > 0;
+    if (k === "short" || k === "essay") return String(a).trim() !== "";
     return true;
   }
   function isCorrect(t, q, a, keyVal) {
@@ -88,7 +123,15 @@
       }
       return true;
     }
-    if (k === "short") return TP.shortHash(a, t.id) === q.h;
+    if (k === "essay") return false;
+    if (k === "multi") { var m = 0; a.forEach(function (i) { m |= 1 << i; }); return m === keyVal; }
+    if (k === "match") {
+      for (var mr = 0; mr < q.rows.length; mr++) if (a[mr] !== keyVal[mr]) return false;
+      return true;
+    }
+    if (k === "short") return Array.isArray(keyVal)
+      ? keyVal.some(function (x) { return TP.normShort(x) === TP.normShort(a); })
+      : TP.shortHash(a, t.id) === q.h;
     return a === keyVal;
   }
   function answerCode(q, a) { // short form for the results sheet
@@ -96,6 +139,9 @@
     if (!isAnswered(q, a)) return "-";
     if (k === "table") return "[" + q.rows.map(function (_, r) { return a[r] == null ? "-" : String(a[r] + 1); }).join("") + "]"; // 1 = first column, 2 = second
     if (k === "short") return '"' + String(a).trim().slice(0, 40) + '"';
+    if (k === "multi") return "{" + a.slice().sort().map(function (i) { return TP.LETTERS[i]; }).join("") + "}";
+    if (k === "match") return "[" + q.rows.map(function (_, r) { return a[r] == null ? "-" : TP.LETTERS[a[r]]; }).join("") + "]";
+    if (k === "essay") return "ESAI";
     return TP.LETTERS[a];
   }
 
@@ -228,7 +274,8 @@
     var st = LS.get("tp_student", null);
     if (!st) return renderLogin();
     var visible = TESTS.filter(function (t) {
-      return t.open !== false && (!t.classes || !t.classes.length || t.classes.indexOf(st.kelas) > -1);
+      return t.open !== false && (!t.classes || !t.classes.length || t.classes.indexOf(st.kelas) > -1) &&
+        (!notYetOpen(t) || isUnlimited(st)); // students don't see it before its opening date
     });
     var cards = visible.map(function (t) {
       var done = attemptsOf(t, st);
@@ -249,7 +296,8 @@
       return '<div class="card test-card"><div><h3>' + TP.esc(t.title) + "</h3>" +
         (t.description ? '<div class="muted small">' + TP.esc(t.description) + "</div>" : "") +
         '<div class="chips"><span class="chip">' + t._count + ' soal</span><span class="chip">' + t.duration +
-        " menit</span>" + (codeFor(t) ? '<span class="chip">butuh kode</span>' : "") + status + "</div></div>" +
+        " menit</span>" + (codeFor(t) ? '<span class="chip">butuh kode</span>' : "") +
+        (notYetOpen(t) ? '<span class="chip warnc">Guru saja · siswa mulai ' + fmtDate(openTime(t)) + "</span>" : "") + status + "</div></div>" +
         '<div class="card-actions">' + revBtn +
         (left > 0 ? '<button class="btn" data-id="' + TP.esc(t.id) + '">' + (done.length ? "Kerjakan lagi" : "Mulai") + "</button>"
           : '<div style="text-align:right"><span class="chip closed">Kesempatan habis</span>' +
@@ -276,7 +324,7 @@
 
   function renderRules(t) {
     var st = LS.get("tp_student", null);
-    if (lockOf(t, st)) return renderHome();
+    if (lockOf(t, st) || (notYetOpen(t) && !isUnlimited(st))) return renderHome();
     app.innerHTML = topbar(st) + '<div class="page"><div class="card"><h2>' + TP.esc(t.title) + "</h2>" +
       '<div class="chips"><span class="chip">' + t._count + ' soal</span><span class="chip">' + t.duration + " menit</span></div>" +
       '<h3 style="margin:20px 0 4px;font-size:16px">Peraturan</h3><ul class="rules">' +
@@ -301,6 +349,20 @@
     document.getElementById("back").onclick = renderHome;
     start.onclick = function () {
       var need = codeFor(t);
+      if (need && need.enc) {
+        enterFs(); // ask for fullscreen while the tap still counts, then check the code
+        start.disabled = true; start.textContent = "Memeriksa kode…";
+        unlockTest(t, document.getElementById("code").value).then(function (ok) {
+          start.disabled = false; start.textContent = "Mulai Tes";
+          if (!ok) {
+            exitFs();
+            modal('<h3>Kode salah</h3><p>Tanyakan kode tes kepada gurumu.</p><div class="actions"><button class="btn" id="mok">OK</button></div>');
+            document.getElementById("mok").onclick = closeModal; return;
+          }
+          beginTest(t, st);
+        });
+        return;
+      }
       if (need) {
         var c = document.getElementById("code").value.trim().toUpperCase();
         if (TP.hash(c) !== need.hash) {
@@ -326,7 +388,7 @@
     t._flat.forEach(function (f) {
       var n = (Q(t, f.g).o || []).length, idx = [];
       for (var i = 0; i < n; i++) idx.push(i);
-      optOrder[f.g] = t.shuffleOptions ? TP.shuffle(idx) : idx;
+      optOrder[f.g] = (t.shuffleOptions && !Q(t, f.g).fixed) ? TP.shuffle(idx) : idx; // "fixed": keep A–D (e.g. error finding)
     });
     var now = Date.now();
     S = {
@@ -432,6 +494,45 @@
               return '<td class="pick"><button class="tick' + (on ? " sel" : "") + '" data-r="' + r + '" data-c="' + ci + '" aria-label="' + TP.esc(c) + '">' + (on ? "✓" : "") + "</button></td>";
             }).join("") + "</tr>";
           }).join("") + '</table><p class="muted small">Pilih satu kolom untuk setiap baris. Soal ini benar hanya jika semua baris benar.</p>';
+      } else if (kind === "multi") {
+        var mo = S.optOrder[g], picked = Array.isArray(a) ? a : [];
+        optsEl.innerHTML = '<p class="muted small" style="margin:0">Pilih <b>semua</b> jawaban yang benar (bisa lebih dari satu).</p>' +
+          mo.map(function (orig, i) {
+            var on = picked.indexOf(orig) > -1;
+            return '<button class="opt multi' + (on ? " sel" : "") + '" data-m="' + orig + '"><span class="L">' + (on ? "✓" : TP.LETTERS[i]) +
+              "</span><span>" + TP.inline(q.o[orig]) + "</span></button>";
+          }).join("");
+      } else if (kind === "match") {
+        var cur = Array.isArray(a) ? a : [];
+        optsEl.innerHTML = '<div class="mchoices">' + q.choices.map(function (c, i) { return "<div><b>" + TP.LETTERS[i] + ".</b> " + TP.inline(c) + "</div>"; }).join("") + "</div>" +
+          '<table class="qtable"><tr><th>' + TP.esc(q.rowHead || "Item") + "</th><th>Jawaban</th></tr>" +
+          q.rows.map(function (row, r) {
+            return "<tr><td>" + TP.inline(row) + '</td><td class="pick"><select class="msel" data-mr="' + r + '"><option value="">—</option>' +
+              q.choices.map(function (_, ci) { return '<option value="' + ci + '"' + (cur[r] === ci ? " selected" : "") + ">" + TP.LETTERS[ci] + "</option>"; }).join("") +
+              "</select></td></tr>";
+          }).join("") + '</table><p class="muted small">Pilih satu huruf untuk setiap baris. Ada pilihan yang tidak dipakai. Soal ini benar hanya jika semua baris benar.</p>';
+        optsEl.querySelectorAll("select[data-mr]").forEach(function (sel) {
+          sel.onchange = function () {
+            var nx = Array.isArray(S.answers[g]) ? S.answers[g].slice() : q.rows.map(function () { return null; });
+            nx[+sel.getAttribute("data-mr")] = sel.value === "" ? null : +sel.value;
+            if (nx.every(function (x) { return x == null; })) delete S.answers[g]; else S.answers[g] = nx;
+            save(); paintGrid();
+            document.getElementById("clear").style.visibility = S.answers[g] == null ? "hidden" : "visible";
+          };
+        });
+      } else if (kind === "essay") {
+        optsEl.innerHTML = '<textarea class="essay-in" id="essayIn" spellcheck="false" placeholder="Tulis jawabanmu di sini">' + TP.esc(a || "") + "</textarea>" +
+          '<p class="muted small" id="wc"></p>';
+        var ta = document.getElementById("essayIn"), wc = document.getElementById("wc");
+        var upWc = function () {
+          var nw = (ta.value.trim().match(/\S+/g) || []).length;
+          wc.textContent = nw + " kata" + (q.words ? " · target " + q.words + " kata" : "") + " · disimpan otomatis";
+        };
+        upWc();
+        ta.oninput = function () {
+          if (ta.value.trim()) S.answers[g] = ta.value; else delete S.answers[g];
+          save(); paintGrid(); upWc();
+        };
       } else if (kind === "short") {
         optsEl.innerHTML = '<input type="text" class="short-in" id="shortIn" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ketik jawabanmu di sini" value="' + TP.esc(a || "") + '">' +
           '<p class="muted small">Ketik jawaban persis seperti di teks. Huruf besar/kecil tidak berpengaruh.</p>';
@@ -451,7 +552,7 @@
         }).join("") + (fb ? '<div class="fb ' + (a === KEY[g] ? "good" : "bad") + '"><b>' + (a === KEY[g] ? "✓ Benar!" : "✗ Belum tepat.") + "</b> " +
           ((NOTES[g] && NOTES[g].e) ? TP.inline(NOTES[g].e) : "") + "</div>" : "");
       }
-      document.getElementById("clear").style.visibility = (S.answers[g] == null || IF) ? "hidden" : "visible";
+      document.getElementById("clear").style.visibility = (S.answers[g] == null || IF || kind === "essay") ? "hidden" : "visible";
       document.getElementById("flag").checked = !!S.flags[g];
       document.getElementById("prev").disabled = pos === 0;
       document.getElementById("next").textContent = pos === order.length - 1 ? "Selesai ›" : "Selanjutnya ›";
@@ -462,6 +563,14 @@
         var q = Q(T, g), cur = Array.isArray(S.answers[g]) ? S.answers[g].slice() : q.rows.map(function () { return null; });
         cur[+t.getAttribute("data-r")] = +t.getAttribute("data-c");
         S.answers[g] = cur;
+        save(); paintQuestion(); paintGrid(); return;
+      }
+      var mb = e.target.closest("[data-m]");
+      if (mb) {
+        var pk = Array.isArray(S.answers[g]) ? S.answers[g].slice() : [], v = +mb.getAttribute("data-m"), ix = pk.indexOf(v);
+        if (ix > -1) pk.splice(ix, 1); else pk.push(v);
+        pk.sort(function (x, y) { return x - y; });
+        if (pk.length) S.answers[g] = pk; else delete S.answers[g];
         save(); paintQuestion(); paintGrid(); return;
       }
       var b = e.target.closest("[data-o]"); if (!b) return;
@@ -612,14 +721,22 @@
   /* ---------------- submit + send ---------------- */
   function fmtDur(ms) { var s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + "m " + ("0" + (s % 60)).slice(-2) + "s"; }
   function grade(t, s) {
-    var key = TP.decodeKey(t.key, t.id), correct = 0, types = {}, ans = [];
+    var key = t._keys || TP.decodeKey(t.key, t.id), correct = 0, total = 0, types = {}, ans = [], essays = [];
     t._flat.forEach(function (f) {
-      var q = Q(t, f.g), ty = q.t || "General", a = s.answers[f.g], ok = isCorrect(t, q, a, key[f.g]);
+      var q = Q(t, f.g), ty = q.t || "General", a = s.answers[f.g];
+      if (kindOf(q) === "essay") { // not auto-scored: the full text goes to the teacher
+        ans.push((f.g + 1) + "ESAI");
+        essays.push("ESAI no " + (f.g + 1) + ": " + (isAnswered(q, a) ? String(a).replace(/\s+/g, " ").trim() : "(kosong)"));
+        return;
+      }
+      total++;
+      var ok = isCorrect(t, q, a, key[f.g]);
       types[ty] = types[ty] || { c: 0, n: 0 };
       types[ty].n++; if (ok) { types[ty].c++; correct++; }
       ans.push((f.g + 1) + answerCode(q, a) + (ok ? "✓" : "✗"));
     });
-    return { correct: correct, total: t._count, score: Math.round(correct / t._count * 100), types: types, answers: ans.join(" ") };
+    return { correct: correct, total: total, score: total ? Math.round(correct / total * 100) : 0, types: types,
+      answers: ans.join(" ") + (essays.length ? " || " + essays.join(" || ") : ""), essays: essays.length };
   }
 
   function submit(reason) {
@@ -636,7 +753,7 @@
     var c = counts();
     var note = "Benar " + r.correct + "/" + r.total + " | " + typeTxt + " | Kosong " + c.empty +
       " | Waktu " + fmtDur(Math.min(s.finishedAt, s.end) - s.start) + " | Pelanggaran " + leaveTxt + (s.shortLeaves ? " | Keluar singkat diabaikan " + s.shortLeaves + "x" : "") +
-      " | " + reason + " | Percobaan ke-" + s.attempt;
+      " | " + reason + " | Percobaan ke-" + s.attempt + (r.essays ? " | Esai belum dinilai (lihat kolom Jawaban)" : "");
     var payload = {
       id: t.id + "|" + s.kelas + "|" + s.name + "|" + s.start,
       NAMA: s.name, KELAS: s.kelas, TES: t.title, SKOR: String(r.score), CATATAN: note, JAWABAN: r.answers
@@ -702,7 +819,9 @@
           : '<div class="sent no big-msg">Belum lulus. Perlu skor <b>' + t.passScore + "</b> untuk membuka level berikutnya. Lihat pembahasan, lalu coba lagi!</div>";
       }
       body = passMsg + '<p class="muted" style="margin:0">Skor kamu</p><div class="score-big">' + r.score + "</div>" +
-        '<p style="margin:0">Benar <b>' + r.correct + "</b> dari " + r.total + ' soal</p><p class="muted small">' + TP.esc(reason) + "</p>" +
+        '<p style="margin:0">Benar <b>' + r.correct + "</b> dari " + r.total + ' soal pilihan</p>' +
+        (r.essays ? '<p class="muted small" style="margin:4px 0 0">Jawaban esai sudah dikirim ke guru dan akan dinilai terpisah.</p>' : "") +
+        '<p class="muted small">' + TP.esc(reason) + "</p>" +
         '<h3 style="font-size:16px;margin:22px 0 0">Hasil per tipe soal</h3><div class="bars">' + bars + "</div>";
     } else {
       body = "<p>Jawabanmu sudah dikumpulkan. Hasil akan diumumkan oleh guru.</p>";
@@ -775,7 +894,7 @@
     if (!act) return false;
     var t = TESTS.filter(function (x) { return x.id === act.testId; })[0];
     var s = t && LS.get(stateKey(t.id, act), null);
-    if (!t || !s || s.submitted) { LS.del("tp_active"); return false; }
+    if (!t || !s || s.submitted || !t.sections) { LS.del("tp_active"); return false; }
     T = t; S = s;
     LS.set("tp_student", { kelas: s.kelas, name: s.name });
     if (Date.now() >= S.end) { running = true; submit("Waktu habis"); return true; }
@@ -794,6 +913,10 @@
 
   /* ---------------- boot ---------------- */
   loadScripts(C.tests || []).then(function () {
+    // locked tests already opened on this device are unlocked again with the saved code
+    return Promise.all(TESTS.filter(function (t) { return t.enc && LS.get(UNLOCK + t.id, null); })
+      .map(function (t) { return unlockTest(t, LS.get(UNLOCK + t.id, "")); }));
+  }).then(function () {
     flushQueue();
     if (!tryResume()) renderHome();
   });

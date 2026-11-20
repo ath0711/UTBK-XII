@@ -14,7 +14,8 @@
   TP.inline = function (s) {
     return TP.esc(s)
       .replace(/__(.+?)__/g, "<u>$1</u>")
-      .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+      .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+      .replace(/\{ar\}([\s\S]+?)\{\/ar\}/g, '<span class="ar" dir="rtl" lang="ar">$1</span>');
   };
   // a block whose lines all start with "|" is drawn as a table
   // (| a | b | rows; a |---|---| line marks the row above it as the header)
