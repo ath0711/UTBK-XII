@@ -154,11 +154,14 @@ window.APP_CONFIG = {
 
   /* LEAVE DETECTION — how strict the test is.
         maxViolations: the test is submitted automatically at this number of leaves.
-        ignoreShorterThanSeconds: leaving the page for less than this is not counted
-        (stops false alarms from notifications or accidental swipes on tablets). */
+        ignoreShorterThanSeconds: only a flicker shorter than this is ignored (max 1).
+          Any real tab/app switch counts, however short.
+        reloadGraceSeconds: a page that reloads and comes back within this time
+          (e.g. an accidental swipe-down on a tablet) is noted but NOT counted as a violation. */
   antiCheat: {
     maxViolations: 3,
-    ignoreShorterThanSeconds: 3
+    ignoreShorterThanSeconds: 1,
+    reloadGraceSeconds: 10
   },
 
   /* 4) TESTS shown to students (top = first).

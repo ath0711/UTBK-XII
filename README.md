@@ -103,12 +103,17 @@ On GitHub: open `config.js` → ✏️ → paste the line → **Commit changes**
 When a student has used their attempt (for example, auto-submitted after leaving 3 times), their test card shows **Buka lagi (guru)**. Tap it on the student's device and type the teacher PIN: the student gets one more attempt. Both attempts arrive in your Sheet ("Percobaan ke-1", "ke-2").
 To change the PIN: `maker.html` → **Hidden access code** → Test ID `reset` → type the new PIN → paste the line into `config.js` (`teacherResetCode`).
 
-## Tablets and false alarms
-In `config.js` → `antiCheat`:
-- `ignoreShorterThanSeconds: 3` means leaving the page for less than 3 seconds isn't counted (accidental swipes, a notification).
-- `maxViolations: 3` is how many leaves auto-submit the test. Raise it (e.g. 5) if tablets still trigger too often.
+## Leave detection (anti-cheat)
+- **Any tab or app switch counts, however short.** Only a flicker under 1 second is ignored. While the student is away, the questions are hidden.
+- **Split screen** (another app or window beside the test) counts too: the page notices when the window suddenly gets much narrower.
+- **Accidental refresh is forgiven.** On tablets, swiping down can reload the page. Pull-to-refresh is now switched off during the test, and if the page still reloads and the student is back within 10 seconds, it is *not* a violation (it is noted as "Muat ulang cepat" in `Catatan`). Leaving the page for longer still counts.
+- **Tablets:** the keyboard, notifications and swiping out of fullscreen are not counted. If fullscreen drops (e.g. when the keyboard opens), a small **⤢ Layar penuh** button appears instead of a popup, so typing in fill-in and essay boxes is never blocked.
+- **3rd violation = locked, not submitted.** The test locks and shows "🔒 Tes terkunci". Answers are kept and the timer keeps running. Only you can reopen it: type the **teacher PIN** (the same PIN as "Buka lagi (guru)", `teacherResetCode` in `config.js`) on the student's device. Every violation after that locks it again. Reloading the page doesn't unlock it. If time runs out while locked, the test is submitted. `Catatan` shows "Terkunci & dibuka guru Nx" and any wrong PIN tries.
+- **Device check before starting.** Before **Mulai Tes** works, the page checks that: the test page is the active window; nothing is beside it (no split screen, browser window maximized on laptops); and the test site isn't open in another tab. The student must also tick "I have closed all other apps and tabs". The result is in `Catatan` ("Cek awal").
+  A website is **not allowed** by any browser to see the list of other apps or tabs on a device, so it can't name them. That's why the student confirms closing them, and any switch after starting is caught and counted.
+- Settings in `config.js` → `antiCheat`: `maxViolations` (the test locks at this number), `reloadGraceSeconds` (default 10), `ignoreShorterThanSeconds` (max 1).
 
-On tablets and phones, notifications, the keyboard, and swiping out of fullscreen are not counted. Students are only asked to go back to fullscreen. Real tab or app switches still count. The screen also stays on during the test, so auto-lock doesn't count as leaving. Ask tablet users to turn on Do Not Disturb before starting.
+Ask tablet users to turn on Do Not Disturb before starting. The screen stays on during the test, so auto-lock doesn't count as leaving.
 
 Other test settings:
 - **Access code**: students must type a code before starting, so you control when the test opens.
@@ -119,16 +124,17 @@ Other test settings:
 To hide a test without deleting it, remove its line from `config.js`.
 
 ## ASAS 26/27 (locked test with an opening date)
-`tests/asas-2627.js` is the end-of-semester test: 3 texts, 25 questions, 60 minutes, for XII Paket A, C, D (and Guru).
+`tests/asas-2627.js` is the end-of-semester test: 3 texts, 25 questions, **50 minutes**, for XII Paket A, C, D (and Guru).
 - **Hidden until 1 December 2026, 00:00 WITA.** Before that, students don't see it in their list at all. Guru (uji coba) sees it with a yellow "Guru saja" label so you can try it.
-- **Locked with an access code.** The questions and the answer key are encrypted inside the file. Without the code nobody can read them, not even by opening the file on GitHub. Announce the code in class when the test starts. Capital letters and spaces don't matter.
+- **3 attempts, a new code for each.** Attempt 1 opens only with code 1, attempt 2 only with code 2, attempt 3 only with code 3 (the codes are in `teacher-only/asas-2627/README.txt`). The student's screen says which attempt's code it needs. Announce each code only when you want that attempt to start. Capital letters and spaces don't matter. Guru (uji coba) can use any of the three.
+- **Locked.** The questions and the answer key are encrypted inside the file. Without a code nobody can read them, not even by opening the file on GitHub.
+- **At the end** students see their score and can tap **Lihat jawaban yang benar** to see each question marked Benar/Salah with the correct answer (no explanations). They can open it again later with the **Jawaban benar** button on the test card.
 - **New question types:** choose-all (complex multiple choice), matching (a letter for each row), and essay. The error-finding questions keep their A–D order; other options are shuffled per student.
-- **Scoring:** the score (0–100) counts the 24 auto-marked questions. The essay (no. 25) is marked by you: its full text is at the end of the `Jawaban` column, and `Catatan` says "Esai belum dinilai".
-- Students don't see their score or pembahasan at the end (`showResult: false`), and get one attempt. "Buka lagi (guru)" still works with the teacher PIN.
-- To change the code, the date, or the classes, ask Claude to rebuild the file (the source is in `teacher-only/asas-2627/`). Changing the date or classes directly in `config.js` won't work for this test.
+- **Scoring:** the score (0–100) counts the 24 auto-marked questions. The essay (no. 25) is marked by you: its full text is at the end of the `Jawaban` column, and `Catatan` says "Esai belum dinilai". Each attempt arrives as its own row ("Percobaan ke-1/2/3").
+- To change the codes, the date, the time or the classes, ask Claude to rebuild the file (the source is in `teacher-only/asas-2627/`). Changing them in `config.js` won't work for this test.
 
 ## Honest limits (good to know)
-- **A website cannot physically block other tabs or apps.** What it can do is detect them: fullscreen exits, tab or app switches, and closing or reloading the page all count as violations, are recorded with the time, and the 3rd one submits the test. On iPhones, fullscreen isn't supported, but tab and app switching is still detected.
+- **A website cannot physically stop a student from opening another tab or app** — no website can. What it does is catch it immediately: every switch is counted (even 1–2 seconds), the questions are hidden while they are away, the warning shows the count, and the 3rd one locks the test until you reopen it with the teacher PIN. Every violation is in `Catatan` with its time. On iPhones, fullscreen isn't supported, but tab and app switching is still detected.
 - **The one-attempt limit is stored on each device.** A student who changes device or clears browser data could start again. Every attempt still arrives in your Sheet with its time, so a second row for the same student is easy to spot.
 - Answer keys in the test files are encoded, not readable as plain letters. Explanations are never uploaded. ASAS 26/27 goes further: its questions and key are encrypted with the access code.
 - The opening date uses the clock of the student's device. A student who changes their device date could see the ASAS card early, but still can't open it without the code.

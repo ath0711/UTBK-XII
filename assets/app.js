@@ -65,23 +65,43 @@
   }
   var UNLOCK = "tp_unlock|";
   function normCode(c) { return String(c || "").replace(/\s+/g, "").toUpperCase(); }
-  function unlockTest(t, code) { // decrypts the questions with the access code; false = wrong code
+  function b64bytes(b64) { var bin = atob(b64), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+  function openWrap(w, norm, iter) { // the access code opens a wrap; inside is the key to the questions
+    return crypto.subtle.importKey("raw", new TextEncoder().encode(norm), "PBKDF2", false, ["deriveKey"]).then(function (base) {
+      return crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64bytes(w.salt), iterations: iter, hash: "SHA-256" },
+        base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+    }).then(function (kek) {
+      return crypto.subtle.decrypt({ name: "AES-GCM", iv: b64bytes(w.iv) }, kek, b64bytes(w.data));
+    });
+  }
+  /* slot = which code is needed (0 = 1st attempt, 1 = 2nd, …); null = any code of this test */
+  function unlockTest(t, code, slot) {
     var norm = normCode(code);
     if (!t.enc) return Promise.resolve(true);
-    if (t.sections) return Promise.resolve(LS.get(UNLOCK + t.id, null) === norm);
-    if (!(window.crypto && crypto.subtle && window.TextEncoder)) return Promise.resolve(false);
-    function bytes(b64) { var bin = atob(b64), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
-    return crypto.subtle.importKey("raw", new TextEncoder().encode(norm), "PBKDF2", false, ["deriveKey"]).then(function (base) {
-      return crypto.subtle.deriveKey({ name: "PBKDF2", salt: bytes(t.enc.salt), iterations: t.enc.iter, hash: "SHA-256" },
-        base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
-    }).then(function (key) {
-      return crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes(t.enc.iv) }, key, bytes(t.enc.data));
-    }).then(function (buf) {
-      var p = JSON.parse(new TextDecoder().decode(buf));
-      t.sections = p.sections; t._keys = p.keys; buildFlat(t);
-      LS.set(UNLOCK + t.id, norm);
-      return true;
+    if (!norm || !(window.crypto && crypto.subtle && window.TextEncoder)) return Promise.resolve(false);
+    var wraps = t.enc.wraps, idx = [];
+    if (slot == null) for (var i = 0; i < wraps.length; i++) idx.push(i);
+    else idx.push(Math.min(slot, wraps.length - 1));
+    function tryNext(k) {
+      if (k >= idx.length) return Promise.resolve(null);
+      return openWrap(wraps[idx[k]], norm, t.enc.iter).catch(function () { return null; }).then(function (raw) { return raw || tryNext(k + 1); });
+    }
+    return tryNext(0).then(function (raw) {
+      if (!raw) return false;
+      if (t.sections) { LS.set(UNLOCK + t.id, norm); return true; }
+      return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]).then(function (ck) {
+        return crypto.subtle.decrypt({ name: "AES-GCM", iv: b64bytes(t.enc.iv) }, ck, b64bytes(t.enc.data));
+      }).then(function (buf) {
+        var p = JSON.parse(new TextDecoder().decode(buf));
+        t.sections = p.sections; t._keys = p.keys; buildFlat(t);
+        LS.set(UNLOCK + t.id, norm);
+        return true;
+      });
     }).catch(function () { return false; });
+  }
+  function codeSlot(t, st) { // which attempt code this student needs now (null = teacher: any code)
+    if (!t.enc || isUnlimited(st)) return null;
+    return attemptsOf(t, st).length;
   }
 
   /* ---------------- test prep ---------------- */
@@ -283,7 +303,7 @@
       var last = done[done.length - 1];
       var status = "";
       if (done.length) status = '<span class="chip ok">Selesai' + (t.showResult !== false && last ? " · skor " + last.score : "") + "</span>";
-      var revBtn = (last && last.rev && t.rv) ? '<button class="btn ghost" data-rev="' + TP.esc(t.id) + '">Pembahasan</button>' : "";
+      var revBtn = (last && last.rev && (t.rv || (t.enc && t.sections))) ? '<button class="btn ghost" data-rev="' + TP.esc(t.id) + '">' + (t.rv ? "Pembahasan" : "Jawaban benar") + "</button>" : "";
       var lock = lockOf(t, st), best = bestScore(t, st);
       if (t.passScore && done.length) status = best >= t.passScore
         ? '<span class="chip ok">Lulus ✓ · skor terbaik ' + best + "</span>"
@@ -330,7 +350,7 @@
       '<h3 style="margin:20px 0 4px;font-size:16px">Peraturan</h3><ul class="rules">' +
       "<li>Waktu <b>" + t.duration + " menit</b> dimulai saat kamu menekan <i>Mulai Tes</i> dan terus berjalan walaupun halaman ditutup.</li>" +
       "<li>Tes berjalan dalam <b>layar penuh</b>. Jangan pindah tab, membuka aplikasi lain, atau keluar dari layar penuh.</li>" +
-      "<li>Keluar dari halaman tes lebih dari " + Math.round(GRACE / 1000) + " detik dihitung <b>pelanggaran</b> dan dicatat untuk guru. Pada pelanggaran ke-" + t.maxLeaves +
+      "<li>Pindah tab, membuka aplikasi lain, atau membuka layar terpisah (split screen) — <b>sesingkat apa pun</b> — dihitung <b>pelanggaran</b> dan dicatat untuk guru. Pada pelanggaran ke-" + t.maxLeaves +
       ", jawabanmu <b>dikumpulkan otomatis</b>.</li>" +
       (isTouch ? "<li>Pakai tablet/HP? Matikan notifikasi (mode <i>Jangan Ganggu</i>) dan tutup aplikasi lain sebelum mulai.</li>" : "") +
       "<li>Tandai soal yang ingin dicek lagi dengan tombol <b>Ragu-ragu</b>.</li>" +
@@ -339,7 +359,8 @@
       (t.instantFeedback ? "<li>Setelah kamu memilih jawaban, langsung terlihat <b>benar atau salah</b> beserta penjelasannya. Pilihan tidak bisa diubah.</li>" : "") +
       (t.passScore ? "<li>Kamu <b>lulus</b> jika skor minimal <b>" + t.passScore + "</b>. Belum lulus? Coba lagi sampai lulus untuk membuka level berikutnya.</li>" : "") +
       "</ul>" +
-      (codeFor(t) ? '<label class="field" for="code">Kode tes (dari guru)</label><input type="text" id="code" autocomplete="off" placeholder="Masukkan kode">' : "") +
+      (codeFor(t) ? '<label class="field" for="code">Kode tes' + (t.enc && t.enc.wraps.length > 1 && codeSlot(t, st) != null ? " untuk percobaan ke-" + (codeSlot(t, st) + 1) : "") +
+        ' (dari guru)</label><input type="text" id="code" autocomplete="off" placeholder="Masukkan kode">' : "") +
       '<label class="check"><input type="checkbox" id="agree"> <span>Saya <b>' + TP.esc(st.name) + "</b> sudah membaca peraturan dan akan mengerjakan dengan jujur.</span></label>" +
       '<button class="btn block" id="start" disabled>Mulai Tes</button>' +
       '<button class="btn ghost block" id="back" style="margin-top:10px">Kembali</button></div>' + footer() + "</div>";
@@ -352,11 +373,12 @@
       if (need && need.enc) {
         enterFs(); // ask for fullscreen while the tap still counts, then check the code
         start.disabled = true; start.textContent = "Memeriksa kode…";
-        unlockTest(t, document.getElementById("code").value).then(function (ok) {
+        unlockTest(t, document.getElementById("code").value, codeSlot(t, st)).then(function (ok) {
           start.disabled = false; start.textContent = "Mulai Tes";
           if (!ok) {
             exitFs();
-            modal('<h3>Kode salah</h3><p>Tanyakan kode tes kepada gurumu.</p><div class="actions"><button class="btn" id="mok">OK</button></div>');
+            modal('<h3>Kode salah</h3><p>Tanyakan kode tes kepada gurumu.' + (codeSlot(t, st) ? " Setiap percobaan memakai kode yang berbeda." : "") +
+              '</p><div class="actions"><button class="btn" id="mok">OK</button></div>');
             document.getElementById("mok").onclick = closeModal; return;
           }
           beginTest(t, st);
@@ -529,6 +551,7 @@
           wc.textContent = nw + " kata" + (q.words ? " · target " + q.words + " kata" : "") + " · disimpan otomatis";
         };
         upWc();
+        ta.onfocus = function () { setTimeout(function () { ta.scrollIntoView({ block: "center" }); }, 350); };
         ta.oninput = function () {
           if (ta.value.trim()) S.answers[g] = ta.value; else delete S.answers[g];
           save(); paintGrid(); upWc();
@@ -537,6 +560,7 @@
         optsEl.innerHTML = '<input type="text" class="short-in" id="shortIn" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ketik jawabanmu di sini" value="' + TP.esc(a || "") + '">' +
           '<p class="muted small">Ketik jawaban persis seperti di teks. Huruf besar/kecil tidak berpengaruh.</p>';
         var inp = document.getElementById("shortIn");
+        inp.onfocus = function () { setTimeout(function () { inp.scrollIntoView({ block: "center" }); }, 350); };
         inp.oninput = function () {
           if (inp.value.trim()) S.answers[g] = inp.value; else delete S.answers[g];
           save(); paintGrid();
@@ -594,6 +618,7 @@
     window.__tpPaint = function () { paintGrid(); };
 
     paintQuestion(); paintGrid();
+    resetSplit();
     startTimer();
     keepAwake();
   }
@@ -647,23 +672,27 @@
       '<div class="actions"><button class="btn" id="backIn">Kembali ke tes</button></div>', "alert");
     m.querySelector("#backIn").onclick = function () { if (fsSupported && !isFs()) enterFs(); closeModal(); };
   }
-  /* Tablets/phones: notifications, the keyboard and gestures cause false alarms,
-     so there we only count real tab/app switches. Short leaves are ignored everywhere. */
+  /* Every tab or app switch counts, however short (only a flicker under GRACE is ignored).
+     Tablets/phones: notifications, the keyboard and gestures cause false alarms, so there
+     window focus and fullscreen are not counted — only real tab/app switches and split screen. */
   var AC = C.antiCheat || {};
-  var GRACE = (AC.ignoreShorterThanSeconds != null ? Number(AC.ignoreShorterThanSeconds) : 3) * 1000;
+  var GRACE = Math.min(1, AC.ignoreShorterThanSeconds != null ? Number(AC.ignoreShorterThanSeconds) : 1) * 1000;
+  var RELOAD_GRACE = (AC.reloadGraceSeconds != null ? Number(AC.reloadGraceSeconds) : 10) * 1000;
   var isTouch = (window.matchMedia && matchMedia("(pointer: coarse)").matches) ||
     (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
   var awayAt = 0, awayWhy = "";
   function goneAway(why) {
     if (!running || unloading || !S || S.submitted || awayAt) return;
     awayAt = Date.now(); awayWhy = why;
+    document.body.classList.add("away"); // hide the questions while the student is elsewhere
   }
   function cameBack() {
+    document.body.classList.remove("away");
     if (!awayAt) return;
     var away = Date.now() - awayAt; awayAt = 0;
     if (!running || !S || S.submitted) return;
     keepAwake();
-    if (away >= GRACE) onLeave(awayWhy + " (" + Math.round(away / 1000) + " detik)");
+    if (away >= GRACE) onLeave(awayWhy + " (" + Math.max(1, Math.round(away / 1000)) + " detik)");
     else { S.shortLeaves = (S.shortLeaves || 0) + 1; save(); }
   }
   document.addEventListener("visibilitychange", function () {
@@ -676,7 +705,7 @@
   window.addEventListener("focus", function () { if (!document.hidden) cameBack(); });
   function fsChange() {
     if (!running || !fsSupported || isFs() || document.hidden) return;
-    if (isTouch) { askFullscreen(); return; } // gestures exit fullscreen on tablets: just ask to go back
+    if (isTouch) { fsButton(true); return; } // gestures/keyboard exit fullscreen on tablets: offer a button, never block typing
     onLeave("keluar dari layar penuh");
   }
   function askFullscreen() {
@@ -685,6 +714,38 @@
       '<div class="actions"><button class="btn" id="fsBack">Kembali ke layar penuh</button></div>');
     m.querySelector("#fsBack").onclick = function () { enterFs(); closeModal(); };
   }
+  function fsButton(show) {
+    var b = document.getElementById("fsBtn");
+    if (!show || !running || isFs()) { if (b) b.remove(); return; }
+    if (b) return;
+    b = document.createElement("button");
+    b.id = "fsBtn"; b.className = "fs-btn"; b.type = "button"; b.textContent = "⤢ Layar penuh";
+    b.onclick = function () { enterFs(); b.remove(); };
+    document.body.appendChild(b);
+  }
+  document.addEventListener("fullscreenchange", function () { if (isFs()) fsButton(false); });
+  document.addEventListener("webkitfullscreenchange", function () { if (isFs()) fsButton(false); });
+  /* split screen / a second app beside the test: the window suddenly gets much narrower
+     (the on-screen keyboard only changes the height, so it doesn't trigger this) */
+  var baseW = {}, splitOn = false, rsT = null;
+  function screenOrient() { // orientation of the device screen (not of the window)
+    var t = screen.orientation && screen.orientation.type;
+    if (t) return t.indexOf("landscape") > -1 ? "L" : "P";
+    if (typeof window.orientation === "number") return Math.abs(window.orientation) === 90 ? "L" : "P";
+    return screen.width >= screen.height ? "L" : "P";
+  }
+  function resetSplit() { baseW = {}; baseW[screenOrient()] = window.innerWidth; splitOn = false; }
+  window.addEventListener("resize", function () {
+    clearTimeout(rsT);
+    rsT = setTimeout(function () {
+      if (!running || !S || S.submitted) return;
+      var o = screenOrient(), w = window.innerWidth;
+      if (!baseW[o]) { baseW[o] = w; return; } // first time in this orientation (rotated)
+      if (w > baseW[o]) baseW[o] = w;
+      if (w < baseW[o] * 0.75) { if (!splitOn) { splitOn = true; onLeave("membuka layar terpisah / jendela lain di samping tes"); } }
+      else splitOn = false;
+    }, 700);
+  });
   document.addEventListener("fullscreenchange", fsChange);
   document.addEventListener("webkitfullscreenchange", fsChange);
   /* keep the screen on during the test, so auto-lock doesn't count as leaving */
@@ -697,6 +758,7 @@
     } catch (e) { }
   }
   function releaseAwake() { try { if (wakeLock) wakeLock.release(); } catch (e) { } wakeLock = null; }
+  window.addEventListener("pagehide", function () { if (running && S && !S.submitted) { S.unloadAt = Date.now(); save(); } });
   window.addEventListener("beforeunload", function (e) {
     if (!running) return;
     unloading = true;
@@ -752,7 +814,7 @@
     var leaveTxt = s.leaves.length ? s.leaves.length + "x (" + s.leaves.map(function (l) { return fmtClock(l.at) + " " + l.r; }).join(", ") + ")" : "0x";
     var c = counts();
     var note = "Benar " + r.correct + "/" + r.total + " | " + typeTxt + " | Kosong " + c.empty +
-      " | Waktu " + fmtDur(Math.min(s.finishedAt, s.end) - s.start) + " | Pelanggaran " + leaveTxt + (s.shortLeaves ? " | Keluar singkat diabaikan " + s.shortLeaves + "x" : "") +
+      " | Waktu " + fmtDur(Math.min(s.finishedAt, s.end) - s.start) + " | Pelanggaran " + leaveTxt + (s.shortLeaves ? " | Keluar singkat diabaikan " + s.shortLeaves + "x" : "") + (s.reloads ? " | Muat ulang cepat " + s.reloads + "x" : "") +
       " | " + reason + " | Percobaan ke-" + s.attempt + (r.essays ? " | Esai belum dinilai (lihat kolom Jawaban)" : "");
     var payload = {
       id: t.id + "|" + s.kelas + "|" + s.name + "|" + s.start,
@@ -760,7 +822,7 @@
     };
     var done = attemptsOf(t, s);
     var rec = { score: r.score, correct: r.correct, total: r.total, at: s.finishedAt };
-    if (t.showReview && t.rv) rec.rev = { answers: s.answers, optOrder: s.optOrder, secOrder: s.secOrder };
+    if (t.showReview && (t.rv || t.enc)) rec.rev = { answers: s.answers, optOrder: s.optOrder, secOrder: s.secOrder };
     done.push(rec);
     LS.set(doneKey(t.id, s), done);
     LS.del(stateKey(t.id, s));
@@ -827,7 +889,7 @@
       body = "<p>Jawabanmu sudah dikumpulkan. Hasil akan diumumkan oleh guru.</p>";
     }
     app.innerHTML = topbar(st) + '<div class="page"><div class="card"><h2>' + TP.esc(t.title) + "</h2>" + body + sendMsg +
-      (rec && rec.rev ? '<button class="btn ok block" id="rev">Lihat pembahasan</button><div style="height:10px"></div>' : "") +
+      (rec && rec.rev ? '<button class="btn ok block" id="rev">' + (t.rv ? "Lihat pembahasan" : "Lihat jawaban yang benar") + '</button><div style="height:10px"></div>' : "") +
       '<button class="btn block" id="home">Kembali ke daftar tes</button></div>' + footer() + "</div>";
     var rb = document.getElementById("rev"); if (rb) rb.onclick = function () { renderReview(t, rec); };
     var chg = document.getElementById("chg"); if (chg) chg.onclick = function (e) { e.preventDefault(); LS.del("tp_student"); renderLogin(); };
@@ -839,8 +901,8 @@
   var inReview = false;
   function renderReview(t, rec) {
     inReview = true;
-    var st = LS.get("tp_student", null), rv = rec.rev, key = TP.decodeKey(t.key, t.id), notes;
-    try { notes = JSON.parse(TP.decodeText(t.rv, t.id)); } catch (e) { notes = []; }
+    var st = LS.get("tp_student", null), rv = rec.rev, key = t._keys || TP.decodeKey(t.key, t.id), notes = [];
+    if (t.rv) { try { notes = JSON.parse(TP.decodeText(t.rv, t.id)); } catch (e) { notes = []; } }
     var secOrder = rv.secOrder || t.sections.map(function (_, i) { return i; });
     var n = 0, chips = "", items = "";
     secOrder.forEach(function (si, di) {
@@ -849,9 +911,28 @@
       sec.questions.forEach(function (q, qi) {
         n++;
         var g = sec._start + qi, a = rv.answers[g], kind = kindOf(q), ok = isCorrect(t, q, a, key[g]), note = notes[g] || {};
-        chips += '<a class="rchip ' + (ok ? "good" : "bad") + '" href="#rq' + n + '">' + n + "</a>";
+        var essay = kind === "essay";
+        chips += '<a class="rchip ' + (essay ? "" : ok ? "good" : "bad") + '" href="#rq' + n + '">' + n + "</a>";
         var body = "";
-        if (kind === "table") {
+        if (essay) {
+          body = '<div class="ropt mine"><span class="tag">Jawabanmu</span> ' + (isAnswered(q, a) ? TP.esc(a).replace(/\n/g, "<br>") : "<i>(kosong)</i>") + "</div>";
+        } else if (kind === "multi") {
+          var mo = (rv.optOrder && rv.optOrder[g]) || q.o.map(function (_, i) { return i; }), mine = Array.isArray(a) ? a : [];
+          body = mo.map(function (orig, i) {
+            var isKey = (key[g] >> orig) & 1, isMine = mine.indexOf(orig) > -1;
+            var cls = isKey ? "right" : (isMine ? "mine bad" : "");
+            var tag = isKey ? (isMine ? "Jawabanmu · Kunci" : "Kunci") : (isMine ? "Jawabanmu" : "");
+            return '<div class="ropt ' + cls + '"><span class="L">' + TP.LETTERS[i] + "</span><span>" + TP.inline(q.o[orig]) + "</span>" +
+              (tag ? '<span class="tag">' + tag + "</span>" : "") + "</div>";
+          }).join("") + '<p class="muted small">Jawaban benar: semua pilihan bertanda <b>Kunci</b>.</p>';
+        } else if (kind === "match") {
+          var lab = function (ci) { return ci == null ? "—" : TP.LETTERS[ci] + ". " + TP.esc(q.choices[ci]); };
+          body = '<table class="qtable rtable"><tr><th>' + TP.esc(q.rowHead || "Item") + "</th><th>Jawabanmu</th><th>Kunci</th></tr>" +
+            q.rows.map(function (row, r) {
+              var mineR = a ? a[r] : null, hit = mineR === key[g][r];
+              return "<tr><td>" + TP.inline(row) + '</td><td class="' + (hit ? "good" : "bad") + '">' + lab(mineR) + "</td><td>" + lab(key[g][r]) + "</td></tr>";
+            }).join("") + "</table>";
+        } else if (kind === "table") {
           body = '<table class="qtable rtable"><tr><th>Pernyataan</th><th>Jawabanmu</th><th>Kunci</th></tr>' +
             q.rows.map(function (row, r) {
               var mine = a && a[r] != null ? q.cols[a[r]] : "—", right = q.cols[(key[g] >> r) & 1], hit = a && a[r] === ((key[g] >> r) & 1);
@@ -859,7 +940,7 @@
             }).join("") + "</table>";
         } else if (kind === "short") {
           body = '<div class="ropt ' + (ok ? "mine good" : "mine bad") + '"><span class="tag">Jawabanmu</span> ' + (isAnswered(q, a) ? TP.esc(a) : "<i>(kosong)</i>") + "</div>" +
-            (ok ? "" : '<div class="ropt right"><span class="tag">Kunci</span> ' + TP.esc(note.a || "") + "</div>");
+            (ok ? "" : '<div class="ropt right"><span class="tag">Kunci</span> ' + TP.esc(note.a || (Array.isArray(key[g]) ? key[g].join(" / ") : "")) + "</div>");
         } else {
           var oo = (rv.optOrder && rv.optOrder[g]) || q.o.map(function (_, i) { return i; });
           body = oo.map(function (orig, i) {
@@ -869,8 +950,8 @@
               (tag ? '<span class="tag">' + tag + "</span>" : "") + "</div>";
           }).join("") + (isAnswered(q, a) ? "" : '<p class="muted small">Kamu tidak menjawab soal ini.</p>');
         }
-        block += '<div class="ritem" id="rq' + n + '"><div class="rhead"><b>Soal ' + n + '</b><span class="rbadge ' + (ok ? "good" : "bad") + '">' +
-          (ok ? "✓ Benar" : "✗ Salah") + "</span>" + (q.t ? '<span class="muted small">' + TP.esc(q.t) + "</span>" : "") + "</div>" +
+        block += '<div class="ritem" id="rq' + n + '"><div class="rhead"><b>Soal ' + n + '</b><span class="rbadge ' + (essay ? "" : ok ? "good" : "bad") + '">' +
+          (essay ? "Dinilai guru" : ok ? "✓ Benar" : "✗ Salah") + "</span>" + (q.t ? '<span class="muted small">' + TP.esc(q.t) + "</span>" : "") + "</div>" +
           '<div class="qtext">' + TP.inline(q.q).replace(/\n/g, "<br>") + "</div>" + body +
           (note.e ? '<div class="rnote"><b>Pembahasan:</b> ' + TP.inline(note.e) + "</div>" : "") + "</div>";
       });
@@ -878,7 +959,7 @@
         (sec.passage && sec.passage.trim() ? '<details class="rpass"><summary>Lihat teks</summary><div class="passage">' + TP.passageHTML(sec.passage) + "</div></details>" : "") +
         block + "</div>";
     });
-    app.innerHTML = topbar(st) + '<div class="page"><div class="card"><h2>Pembahasan — ' + TP.esc(t.title) + "</h2>" +
+    app.innerHTML = topbar(st) + '<div class="page"><div class="card"><h2>' + (t.rv ? "Pembahasan" : "Jawaban benar") + " — " + TP.esc(t.title) + "</h2>" +
       "<p>Skor <b>" + rec.score + "</b> · benar <b>" + rec.correct + "</b> dari " + rec.total + "</p>" +
       '<p class="muted small">Ketuk nomor untuk melompat ke soal. Hijau = benar, merah = salah. Nomor mengikuti urutan soal saat kamu mengerjakan.</p>' +
       '<div class="rchips">' + chips + "</div></div>" + items +
@@ -898,14 +979,18 @@
     T = t; S = s;
     LS.set("tp_student", { kelas: s.kelas, name: s.name });
     if (Date.now() >= S.end) { running = true; submit("Waktu habis"); return true; }
-    S.leaves.push({ at: Date.now(), r: "memuat ulang / menutup halaman" });
+    var gone = S.unloadAt ? Date.now() - S.unloadAt : Infinity, counted = !(gone <= RELOAD_GRACE);
+    delete S.unloadAt;
+    if (counted) S.leaves.push({ at: Date.now(), r: "memuat ulang / menutup halaman" + (isFinite(gone) ? " (" + Math.round(gone / 1000) + " detik)" : "") });
+    else S.reloads = (S.reloads || 0) + 1; // quick refresh (e.g. accidental swipe on a tablet): noted, not a violation
     save();
     if (S.leaves.length >= T.maxLeaves) { running = true; submit("Otomatis: keluar " + S.leaves.length + "x"); return true; }
     var left = T.maxLeaves - S.leaves.length;
     app.innerHTML = topbar(null) + '<div class="page"><div class="card"><h2>Tes sedang berlangsung</h2>' +
       "<p><b>" + TP.esc(S.name) + "</b> · " + TP.esc(S.kelas) + "<br>" + TP.esc(T.title) + "</p>" +
-      '<div class="banner warn">Halaman tes ditutup atau dimuat ulang. Ini dihitung sebagai pelanggaran ke-' + S.leaves.length +
-      " (sisa " + left + "). Waktu tetap berjalan.</div>" +
+      (counted ? '<div class="banner warn">Halaman tes ditutup atau dimuat ulang. Ini dihitung sebagai pelanggaran ke-' + S.leaves.length +
+      " (sisa " + left + "). Waktu tetap berjalan.</div>"
+        : '<div class="banner">Halaman termuat ulang. Karena langsung kembali, ini <b>tidak</b> dihitung pelanggaran (tetap dicatat untuk guru). Waktu tetap berjalan.</div>') +
       '<button class="btn block" id="resume">Lanjutkan Tes</button></div></div>';
     document.getElementById("resume").onclick = function () { enterFs(); runTest(); };
     return true;
