@@ -351,7 +351,7 @@
       "<li>Waktu <b>" + t.duration + " menit</b> dimulai saat kamu menekan <i>Mulai Tes</i> dan terus berjalan walaupun halaman ditutup.</li>" +
       "<li>Tes berjalan dalam <b>layar penuh</b>. Jangan pindah tab, membuka aplikasi lain, atau keluar dari layar penuh.</li>" +
       "<li>Pindah tab, membuka aplikasi lain, atau membuka layar terpisah (split screen) — <b>sesingkat apa pun</b> — dihitung <b>pelanggaran</b> dan dicatat untuk guru. Pada pelanggaran ke-" + t.maxLeaves +
-      ", jawabanmu <b>dikumpulkan otomatis</b>.</li>" +
+      ", tes <b>dikunci</b> dan hanya bisa dibuka lagi oleh <b>guru</b> dengan kode guru (waktu tetap berjalan).</li>" +
       (isTouch ? "<li>Pakai tablet/HP? Matikan notifikasi (mode <i>Jangan Ganggu</i>) dan tutup aplikasi lain sebelum mulai.</li>" : "") +
       "<li>Tandai soal yang ingin dicek lagi dengan tombol <b>Ragu-ragu</b>.</li>" +
       "<li>Saat waktu habis, jawaban dikumpulkan otomatis. Soal kosong dihitung salah (tidak ada pengurangan nilai).</li>" +
@@ -361,14 +361,34 @@
       "</ul>" +
       (codeFor(t) ? '<label class="field" for="code">Kode tes' + (t.enc && t.enc.wraps.length > 1 && codeSlot(t, st) != null ? " untuk percobaan ke-" + (codeSlot(t, st) + 1) : "") +
         ' (dari guru)</label><input type="text" id="code" autocomplete="off" placeholder="Masukkan kode">' : "") +
+      '<h3 style="margin:20px 0 6px;font-size:16px">Pemeriksaan perangkat</h3><ul class="precheck" id="pc"></ul>' +
+      '<label class="check"><input type="checkbox" id="closed"> <span>Saya sudah <b>menutup semua aplikasi dan tab lain</b>' +
+      (isTouch ? " (geser ke atas / tombol aplikasi terakhir, lalu tutup semuanya) dan menyalakan mode <i>Jangan Ganggu</i>" : "") + ".</span></label>" +
       '<label class="check"><input type="checkbox" id="agree"> <span>Saya <b>' + TP.esc(st.name) + "</b> sudah membaca peraturan dan akan mengerjakan dengan jujur.</span></label>" +
       '<button class="btn block" id="start" disabled>Mulai Tes</button>' +
       '<button class="btn ghost block" id="back" style="margin-top:10px">Kembali</button></div>' + footer() + "</div>";
     document.getElementById("chg").onclick = function (e) { e.preventDefault(); LS.del("tp_student"); renderLogin(); };
-    var agree = document.getElementById("agree"), start = document.getElementById("start");
-    agree.onchange = function () { start.disabled = !agree.checked; };
-    document.getElementById("back").onclick = renderHome;
+    var agree = document.getElementById("agree"), closedBox = document.getElementById("closed"), start = document.getElementById("start");
+    var pcOk = false, pcRes = [];
+    function refresh() { start.disabled = !(agree.checked && closedBox.checked && pcOk); }
+    function runChecks() {
+      if (!document.getElementById("pc")) { clearInterval(pcTimer); return; }
+      preChecks().then(function (res) {
+        var el = document.getElementById("pc"); if (!el) return;
+        pcRes = res; pcOk = res.every(function (r) { return r.ok; });
+        el.innerHTML = res.map(function (r) {
+          return '<li class="' + (r.ok ? "ok" : "bad") + '"><span class="pci">' + (r.ok ? "✓" : "✗") + "</span><div><b>" + TP.esc(r.label) + "</b>" +
+            (r.ok ? "" : '<div class="small">' + TP.esc(r.fix) + "</div>") + "</div></li>";
+        }).join("");
+        refresh();
+      });
+    }
+    var pcTimer = setInterval(runChecks, 1500); runChecks();
+    agree.onchange = refresh; closedBox.onchange = refresh;
+    document.getElementById("back").onclick = function () { clearInterval(pcTimer); renderHome(); };
     start.onclick = function () {
+      clearInterval(pcTimer);
+      PRECHECK = pcRes.map(function (r) { return r.key + (r.ok ? " ok" : " GAGAL"); }).join(", ") + (isTouch ? " (tablet/HP)" : " (laptop/PC)");
       var need = codeFor(t);
       if (need && need.enc) {
         enterFs(); // ask for fullscreen while the tap still counts, then check the code
@@ -397,6 +417,45 @@
     };
   }
 
+  /* ---------------- device check before starting ----------------
+     A website is not allowed to list the other apps or tabs on a device. What it CAN check:
+     the test page is the active window, nothing is beside it (split screen / small window),
+     and the test site isn't open in another tab. The student also confirms they closed other apps. */
+  var PRECHECK = "";
+  var bc = null, myId = Math.random().toString(36).slice(2);
+  try {
+    bc = new BroadcastChannel("tp_presence");
+    bc.onmessage = function (e) {
+      var d = e.data || {};
+      if (d.t === "ping" && d.from !== myId) bc.postMessage({ t: "pong", from: myId, to: d.from });
+      if (d.t === "pong" && d.to === myId && bc._seen) bc._seen[d.from] = 1;
+    };
+  } catch (e) { bc = null; }
+  function otherTabs() {
+    return new Promise(function (res) {
+      if (!bc) return res(0);
+      bc._seen = {}; bc.postMessage({ t: "ping", from: myId });
+      setTimeout(function () { res(Object.keys(bc._seen).length); }, 350);
+    });
+  }
+  function preChecks() {
+    return otherTabs().then(function (n) {
+      var active = !document.hidden && document.hasFocus();
+      var sw = screenOrient() === "L" ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+      var w = isTouch ? window.innerWidth : (window.outerWidth || window.innerWidth);
+      if (!isTouch) sw = screen.availWidth || screen.width;
+      var full = w >= sw * 0.85;
+      return [
+        { key: "aktif", ok: active, label: "Halaman tes sedang aktif",
+          fix: "Ketuk/klik halaman ini. Jangan ada aplikasi lain yang sedang dipakai." },
+        { key: "layar", ok: full, label: isTouch ? "Tidak ada layar terpisah (split screen)" : "Jendela browser penuh (maximize)",
+          fix: isTouch ? "Tutup aplikasi yang terbuka di samping atau di atas tes, lalu buka tes di layar penuh." : "Perbesar jendela browser sampai memenuhi layar, dan jangan menaruh jendela lain di sampingnya." },
+        { key: "tab", ok: n === 0, label: "Situs tes tidak terbuka di tab lain",
+          fix: "Tutup tab lain yang membuka situs tes ini (" + n + " tab terdeteksi)." }
+      ];
+    });
+  }
+
   /* ---------------- the test ---------------- */
   var T = null, S = null; // current test + state
   var running = false, unloading = false, lastLeave = 0, tick = null, pos = 0;
@@ -416,7 +475,7 @@
     S = {
       testId: t.id, kelas: st.kelas, name: st.name, secOrder: secOrder, optOrder: optOrder,
       answers: {}, flags: {}, pos: 0, start: now, end: now + t.duration * 60000, leaves: [],
-      attempt: attemptsOf(t, st).length + 1, submitted: false
+      attempt: attemptsOf(t, st).length + 1, submitted: false, precheck: PRECHECK
     };
     T = t;
     save();
@@ -619,6 +678,7 @@
 
     paintQuestion(); paintGrid();
     resetSplit();
+    if (S.locked) setTimeout(showLock, 0);
     startTimer();
     keepAwake();
   }
@@ -660,15 +720,44 @@
     S.leaves.push({ at: now, r: reason });
     save();
     if (window.__tpPaint) window.__tpPaint();
-    if (S.leaves.length >= T.maxLeaves) { submit("Otomatis: keluar " + S.leaves.length + "x"); return; }
+    if (S.leaves.length >= T.maxLeaves) {
+      if (!resetHash()) { submit("Otomatis: keluar " + S.leaves.length + "x"); return; } // no teacher PIN set: old behaviour
+      S.locked = true; save(); showLock(); return;
+    }
     showLeaveWarning(reason);
   }
+  /* Test locked after too many violations: the timer keeps running; only the teacher PIN reopens it. */
+  function showLock() {
+    if (!running || !S || S.submitted) return;
+    exitFs();
+    var m = modal("<h3>🔒 Tes terkunci</h3>" +
+      '<div class="big">' + S.leaves.length + " pelanggaran</div>" +
+      "<p>Kamu sudah keluar dari tes " + S.leaves.length + " kali. Tes dikunci dan semua pelanggaran sudah dicatat untuk guru.</p>" +
+      "<p><b>Panggil gurumu.</b> Hanya guru yang bisa membuka tes ini lagi dengan kode guru. Waktu tetap berjalan.</p>" +
+      '<input type="password" id="lockPin" autocomplete="off" placeholder="Kode guru">' +
+      '<p class="muted small" id="lockMsg" style="min-height:1.2em"></p>' +
+      '<div class="actions"><button class="btn" id="lockOk">Buka tes (guru)</button></div>', "alert lock");
+    var inp = m.querySelector("#lockPin");
+    function tryIt() {
+      if (TP.hash(inp.value.trim().toUpperCase()) !== resetHash()) {
+        m.querySelector("#lockMsg").textContent = "Kode guru salah."; inp.value = "";
+        S.badPins = (S.badPins || 0) + 1; save(); return;
+      }
+      S.locked = false; S.unlocks = (S.unlocks || 0) + 1; save();
+      closeModal(); if (fsSupported && !isFs()) enterFs();
+      if (window.__tpPaint) window.__tpPaint();
+    }
+    m.querySelector("#lockOk").onclick = tryIt;
+    inp.onkeydown = function (e) { if (e.key === "Enter") tryIt(); };
+  }
   function showLeaveWarning(reason) {
+    if (S && S.locked) return showLock();
+    if (S.locked) return showLock();
     var left = T.maxLeaves - S.leaves.length;
     var m = modal("<h3>⚠️ Peringatan pelanggaran</h3>" +
       '<div class="big">' + S.leaves.length + " / " + T.maxLeaves + "</div>" +
       "<p>Kamu terdeteksi <b>" + TP.esc(reason) + "</b>. Kejadian ini sudah dicatat untuk guru.</p>" +
-      "<p>Sisa " + left + " kali lagi sebelum jawabanmu <b>dikumpulkan otomatis</b>.</p>" +
+      "<p>Sisa " + left + " kali lagi sebelum tes <b>dikunci</b> dan hanya bisa dibuka oleh guru.</p>" +
       '<div class="actions"><button class="btn" id="backIn">Kembali ke tes</button></div>', "alert");
     m.querySelector("#backIn").onclick = function () { if (fsSupported && !isFs()) enterFs(); closeModal(); };
   }
@@ -814,7 +903,9 @@
     var leaveTxt = s.leaves.length ? s.leaves.length + "x (" + s.leaves.map(function (l) { return fmtClock(l.at) + " " + l.r; }).join(", ") + ")" : "0x";
     var c = counts();
     var note = "Benar " + r.correct + "/" + r.total + " | " + typeTxt + " | Kosong " + c.empty +
-      " | Waktu " + fmtDur(Math.min(s.finishedAt, s.end) - s.start) + " | Pelanggaran " + leaveTxt + (s.shortLeaves ? " | Keluar singkat diabaikan " + s.shortLeaves + "x" : "") + (s.reloads ? " | Muat ulang cepat " + s.reloads + "x" : "") +
+      " | Waktu " + fmtDur(Math.min(s.finishedAt, s.end) - s.start) + " | Pelanggaran " + leaveTxt + (s.shortLeaves ? " | Keluar singkat diabaikan " + s.shortLeaves + "x" : "") + (s.reloads ? " | Muat ulang cepat " + s.reloads + "x" : "") + (s.unlocks ? " | Terkunci & dibuka guru " + s.unlocks + "x" : "") +
+      (s.locked ? " | Masih terkunci saat dikumpulkan" : "") + (s.badPins ? " | Kode guru salah " + s.badPins + "x" : "") +
+      (s.precheck ? " | Cek awal: " + s.precheck : "") +
       " | " + reason + " | Percobaan ke-" + s.attempt + (r.essays ? " | Esai belum dinilai (lihat kolom Jawaban)" : "");
     var payload = {
       id: t.id + "|" + s.kelas + "|" + s.name + "|" + s.start,
@@ -984,15 +1075,19 @@
     if (counted) S.leaves.push({ at: Date.now(), r: "memuat ulang / menutup halaman" + (isFinite(gone) ? " (" + Math.round(gone / 1000) + " detik)" : "") });
     else S.reloads = (S.reloads || 0) + 1; // quick refresh (e.g. accidental swipe on a tablet): noted, not a violation
     save();
-    if (S.leaves.length >= T.maxLeaves) { running = true; submit("Otomatis: keluar " + S.leaves.length + "x"); return true; }
-    var left = T.maxLeaves - S.leaves.length;
+    if (S.leaves.length >= T.maxLeaves) {
+      if (!resetHash()) { running = true; submit("Otomatis: keluar " + S.leaves.length + "x"); return true; }
+      if (counted) S.locked = true; save();
+    }
+    var left = Math.max(0, T.maxLeaves - S.leaves.length);
     app.innerHTML = topbar(null) + '<div class="page"><div class="card"><h2>Tes sedang berlangsung</h2>' +
       "<p><b>" + TP.esc(S.name) + "</b> · " + TP.esc(S.kelas) + "<br>" + TP.esc(T.title) + "</p>" +
-      (counted ? '<div class="banner warn">Halaman tes ditutup atau dimuat ulang. Ini dihitung sebagai pelanggaran ke-' + S.leaves.length +
+      (S.locked ? '<div class="banner warn">🔒 Tes terkunci karena ' + S.leaves.length + " pelanggaran. Panggil gurumu untuk membukanya. Waktu tetap berjalan.</div>"
+        : counted ? '<div class="banner warn">Halaman tes ditutup atau dimuat ulang. Ini dihitung sebagai pelanggaran ke-' + S.leaves.length +
       " (sisa " + left + "). Waktu tetap berjalan.</div>"
         : '<div class="banner">Halaman termuat ulang. Karena langsung kembali, ini <b>tidak</b> dihitung pelanggaran (tetap dicatat untuk guru). Waktu tetap berjalan.</div>') +
       '<button class="btn block" id="resume">Lanjutkan Tes</button></div></div>';
-    document.getElementById("resume").onclick = function () { enterFs(); runTest(); };
+    document.getElementById("resume").onclick = function () { if (!S.locked) enterFs(); runTest(); if (S.locked) showLock(); };
     return true;
   }
 
