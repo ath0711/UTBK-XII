@@ -1,6 +1,7 @@
 /* UTBK-style test platform — student side. */
 (function () {
   "use strict";
+  var APP_VERSION = "20 Nov · kunci-3"; // shown in the footer: check this to see which version is live
   var C = window.APP_CONFIG || {};
   var TP = window.TP;
   var TESTS = [];
@@ -218,7 +219,7 @@
         ' <a href="#" id="chg">Ganti</a></div>' : "") + "</div>";
   }
   function footer() {
-    return '<div class="footer">' + (C.teacher ? TP.esc(C.teacher) + " · " : "") + "UTBK Training</div>";
+    return '<div class="footer">' + (C.teacher ? TP.esc(C.teacher) + " · " : "") + "UTBK Training · versi " + APP_VERSION + "</div>";
   }
   function testModeBanner() {
     return formInfo() ? "" : '<div class="banner warn"><b>Mode uji coba:</b> skor belum dikirim ke guru karena link Google Form belum diisi di <code>config.js</code>.</div>';
@@ -257,6 +258,12 @@
   function resetHash() {
     var raw = String(C.teacherResetCode || "").trim();
     if (!raw) return "";
+    var m = raw.match(/^hidden:([0-9a-f]{8})$/i);
+    return m ? m[1].toLowerCase() : TP.hash(raw.toUpperCase());
+  }
+  function lockHash() { // passcode that reopens a locked test (its own code; falls back to the teacher PIN)
+    var raw = String(C.lockCode || "").trim();
+    if (!raw) return resetHash();
     var m = raw.match(/^hidden:([0-9a-f]{8})$/i);
     return m ? m[1].toLowerCase() : TP.hash(raw.toUpperCase());
   }
@@ -351,7 +358,7 @@
       "<li>Waktu <b>" + t.duration + " menit</b> dimulai saat kamu menekan <i>Mulai Tes</i> dan terus berjalan walaupun halaman ditutup.</li>" +
       "<li>Tes berjalan dalam <b>layar penuh</b>. Jangan pindah tab, membuka aplikasi lain, atau keluar dari layar penuh.</li>" +
       "<li>Pindah tab, membuka aplikasi lain, atau membuka layar terpisah (split screen) — <b>sesingkat apa pun</b> — dihitung <b>pelanggaran</b> dan dicatat untuk guru. Pada pelanggaran ke-" + t.maxLeaves +
-      ", tes <b>dikunci</b> dan hanya bisa dibuka lagi oleh <b>guru</b> dengan kode guru (waktu tetap berjalan).</li>" +
+      ", tes <b>dikunci</b> dan hanya bisa dibuka lagi oleh <b>guru</b> (waktu tetap berjalan).</li>" +
       (isTouch ? "<li>Pakai tablet/HP? Matikan notifikasi (mode <i>Jangan Ganggu</i>) dan tutup aplikasi lain sebelum mulai.</li>" : "") +
       "<li>Tandai soal yang ingin dicek lagi dengan tombol <b>Ragu-ragu</b>.</li>" +
       "<li>Saat waktu habis, jawaban dikumpulkan otomatis. Soal kosong dihitung salah (tidak ada pengurangan nilai).</li>" +
@@ -721,7 +728,7 @@
     save();
     if (window.__tpPaint) window.__tpPaint();
     if (S.leaves.length >= T.maxLeaves) {
-      if (!resetHash()) { submit("Otomatis: keluar " + S.leaves.length + "x"); return; } // no teacher PIN set: old behaviour
+      if (!lockHash()) { submit("Otomatis: keluar " + S.leaves.length + "x"); return; } // no lock passcode set: old behaviour
       S.locked = true; save(); showLock(); return;
     }
     showLeaveWarning(reason);
@@ -733,14 +740,14 @@
     var m = modal("<h3>🔒 Tes terkunci</h3>" +
       '<div class="big">' + S.leaves.length + " pelanggaran</div>" +
       "<p>Kamu sudah keluar dari tes " + S.leaves.length + " kali. Tes dikunci dan semua pelanggaran sudah dicatat untuk guru.</p>" +
-      "<p><b>Panggil gurumu.</b> Hanya guru yang bisa membuka tes ini lagi dengan kode guru. Waktu tetap berjalan.</p>" +
-      '<input type="password" id="lockPin" autocomplete="off" placeholder="Kode guru">' +
+      "<p><b>Panggil gurumu.</b> Hanya guru yang bisa membuka tes ini lagi dengan kode pembuka. Waktu tetap berjalan.</p>" +
+      '<input type="password" id="lockPin" autocomplete="off" placeholder="Kode pembuka dari guru">' +
       '<p class="muted small" id="lockMsg" style="min-height:1.2em"></p>' +
       '<div class="actions"><button class="btn" id="lockOk">Buka tes (guru)</button></div>', "alert lock");
     var inp = m.querySelector("#lockPin");
     function tryIt() {
-      if (TP.hash(inp.value.trim().toUpperCase()) !== resetHash()) {
-        m.querySelector("#lockMsg").textContent = "Kode guru salah."; inp.value = "";
+      if (TP.hash(inp.value.trim().toUpperCase()) !== lockHash()) {
+        m.querySelector("#lockMsg").textContent = "Kode pembuka salah."; inp.value = "";
         S.badPins = (S.badPins || 0) + 1; save(); return;
       }
       S.locked = false; S.unlocks = (S.unlocks || 0) + 1; save();
@@ -904,7 +911,7 @@
     var c = counts();
     var note = "Benar " + r.correct + "/" + r.total + " | " + typeTxt + " | Kosong " + c.empty +
       " | Waktu " + fmtDur(Math.min(s.finishedAt, s.end) - s.start) + " | Pelanggaran " + leaveTxt + (s.shortLeaves ? " | Keluar singkat diabaikan " + s.shortLeaves + "x" : "") + (s.reloads ? " | Muat ulang cepat " + s.reloads + "x" : "") + (s.unlocks ? " | Terkunci & dibuka guru " + s.unlocks + "x" : "") +
-      (s.locked ? " | Masih terkunci saat dikumpulkan" : "") + (s.badPins ? " | Kode guru salah " + s.badPins + "x" : "") +
+      (s.locked ? " | Masih terkunci saat dikumpulkan" : "") + (s.badPins ? " | Kode pembuka salah " + s.badPins + "x" : "") +
       (s.precheck ? " | Cek awal: " + s.precheck : "") +
       " | " + reason + " | Percobaan ke-" + s.attempt + (r.essays ? " | Esai belum dinilai (lihat kolom Jawaban)" : "");
     var payload = {
@@ -1076,7 +1083,7 @@
     else S.reloads = (S.reloads || 0) + 1; // quick refresh (e.g. accidental swipe on a tablet): noted, not a violation
     save();
     if (S.leaves.length >= T.maxLeaves) {
-      if (!resetHash()) { running = true; submit("Otomatis: keluar " + S.leaves.length + "x"); return true; }
+      if (!lockHash()) { running = true; submit("Otomatis: keluar " + S.leaves.length + "x"); return true; }
       if (counted) S.locked = true; save();
     }
     var left = Math.max(0, T.maxLeaves - S.leaves.length);

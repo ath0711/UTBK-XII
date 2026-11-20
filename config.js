@@ -152,6 +152,13 @@ window.APP_CONFIG = {
         with Test ID  reset  and paste the "hidden:…" value here. Leave "" to turn it off. */
   teacherResetCode: "hidden:86f66fc4",
 
+  /* LOCK PASSCODE — reopens a test that locked after too many violations.
+        It is different from the test codes and from the teacher PIN above.
+        Current passcode: the one Claude gave you. To change it, use maker.html →
+        "Hidden access code" with Test ID  lock  and paste the "hidden:…" value here.
+        Leave "" to use the teacher PIN instead. */
+  lockCode: "hidden:9c07d2bc",
+
   /* LEAVE DETECTION — how strict the test is.
         maxViolations: the test is submitted automatically at this number of leaves.
         ignoreShorterThanSeconds: only a flicker shorter than this is ignored (max 1).
