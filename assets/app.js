@@ -1,7 +1,7 @@
 /* UTBK-style test platform — student side. */
 (function () {
   "use strict";
-  var APP_VERSION = "20 Nov · EN"; // shown in the footer: check this to see which version is live
+  var APP_VERSION = "20 Nov · EN · lock x3 · 5 min"; // shown in the footer: check this to see which version is live
   var C = window.APP_CONFIG || {};
   var TP = window.TP;
   var TESTS = [];
@@ -357,9 +357,11 @@
       '<h3 style="margin:20px 0 4px;font-size:16px">Rules</h3><ul class="rules">' +
       "<li>The <b>" + t.duration + "-minute</b> timer starts when you press <i>Start Test</i> and keeps running even if the page is closed.</li>" +
       "<li>The test runs in <b>full screen</b>. Do not switch tabs, open other apps, or leave full screen.</li>" +
-      "<li>Switching tabs, opening another app, or using split screen — <b>even for a moment</b> — counts as a <b>violation</b> and is reported to your teacher. At violation " + t.maxLeaves +
-      ", the test is <b>locked</b> and only your <b>teacher</b> can reopen it (the timer keeps running).</li>" +
+      "<li>Switching tabs, opening another app, or using split screen — <b>even for a moment</b> — counts as a <b>violation</b> and is reported to your teacher. At every " + t.maxLeaves +
+      " violations (" + t.maxLeaves + ", " + t.maxLeaves * 2 + ", " + t.maxLeaves * 3 + " …), the test is <b>locked</b> and only your <b>teacher</b> can reopen it (the timer keeps running).</li>" +
       (isTouch ? "<li>Using a tablet or phone? Turn on <i>Do Not Disturb</i> and close all other apps before you start.</li>" : "") +
+      (AWAY_LIMIT > 0 ? "<li>If you stay away from the test (another tab or app, or the page closed) for <b>" + Math.round(AWAY_LIMIT / 60000) +
+        " minutes</b> or more, your answers are <b>submitted automatically</b>.</li>" : "") +
       "<li>Mark questions you want to check again with the <b>Unsure</b> box.</li>" +
       "<li>When time runs out, your answers are submitted automatically. Empty answers count as wrong (no minus points).</li>" +
       (t.attempts === 1 ? "<li>You can take this test only <b>once</b>.</li>" : "") +
@@ -678,7 +680,7 @@
       });
       document.getElementById("stat").textContent = "Answered " + answered + "/" + order.length + (flagged ? " · Unsure " + flagged : "");
       var lv = document.getElementById("leaves");
-      lv.textContent = "Violations: " + S.leaves.length + " / " + T.maxLeaves;
+      lv.textContent = "Violations: " + S.leaves.length + " / " + (S.locked ? S.leaves.length : nextLockAt(S.leaves.length));
       lv.className = "leave-count" + (S.leaves.length ? " hot" : "");
     }
     window.__tpPaint = function () { paintGrid(); };
@@ -727,12 +729,14 @@
     S.leaves.push({ at: now, r: reason });
     save();
     if (window.__tpPaint) window.__tpPaint();
-    if (S.leaves.length >= T.maxLeaves) {
-      if (!lockHash()) { submit("Auto-submitted: left " + S.leaves.length + "x"); return; } // no lock passcode set: old behaviour
+    if (!lockHash()) { // no lock passcode set: old behaviour
+      if (S.leaves.length >= T.maxLeaves) { submit("Auto-submitted: left " + S.leaves.length + "x"); return; }
+    } else if (S.leaves.length % T.maxLeaves === 0) { // locks at 3, 6, 9 … (every multiple of maxViolations)
       S.locked = true; save(); showLock(); return;
     }
     showLeaveWarning(reason);
   }
+  function nextLockAt(n) { return (Math.floor(n / T.maxLeaves) + 1) * T.maxLeaves; } // e.g. 0–2 → 3, 3–5 → 6
   /* Test locked after too many violations: the timer keeps running; only the teacher PIN reopens it. */
   function showLock() {
     if (!running || !S || S.submitted) return;
@@ -760,11 +764,12 @@
   function showLeaveWarning(reason) {
     if (S && S.locked) return showLock();
     if (S.locked) return showLock();
-    var left = T.maxLeaves - S.leaves.length;
+    var nextAt = nextLockAt(S.leaves.length), left = nextAt - S.leaves.length;
     var m = modal("<h3>⚠️ Violation warning</h3>" +
-      '<div class="big">' + S.leaves.length + " / " + T.maxLeaves + "</div>" +
+      '<div class="big">' + S.leaves.length + " / " + nextAt + "</div>" +
       "<p>Detected: <b>" + TP.esc(reason) + "</b>. This has been reported to your teacher.</p>" +
       "<p>" + left + " more " + (left === 1 ? "time" : "times") + " and the test will be <b>locked</b>. Only your teacher can unlock it.</p>" +
+      (AWAY_LIMIT > 0 ? '<p class="small">If you stay away for ' + Math.round(AWAY_LIMIT / 60000) + " minutes, your test is submitted automatically.</p>" : "") +
       '<div class="actions"><button class="btn" id="backIn">Back to the test</button></div>', "alert");
     m.querySelector("#backIn").onclick = function () { if (fsSupported && !isFs()) enterFs(); closeModal(); };
   }
@@ -776,17 +781,33 @@
   var RELOAD_GRACE = (AC.reloadGraceSeconds != null ? Number(AC.reloadGraceSeconds) : 10) * 1000;
   var isTouch = (window.matchMedia && matchMedia("(pointer: coarse)").matches) ||
     (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
-  var awayAt = 0, awayWhy = "";
+  var awayAt = 0, awayWhy = "", awayTimer = null;
+  /* Away too long (another tab/app, or the page closed) → the test is submitted automatically. */
+  var AWAY_LIMIT = (AC.autoSubmitAwayMinutes != null ? Number(AC.autoSubmitAwayMinutes) : 5) * 60000;
+  function awayMin(ms) { return Math.round(ms / 6000) / 10; }
+  function submitAway(why, ms) {
+    S.leaves.push({ at: Date.now(), r: why + " (" + awayMin(ms) + " min)" }); save();
+    S.locked = false;
+    submit("Auto-submitted: away from the test for " + awayMin(ms) + " minutes");
+  }
   function goneAway(why) {
     if (!running || unloading || !S || S.submitted || awayAt) return;
     awayAt = Date.now(); awayWhy = why;
     document.body.classList.add("away"); // hide the questions while the student is elsewhere
+    clearTimeout(awayTimer);
+    if (AWAY_LIMIT > 0) awayTimer = setTimeout(function () { // may run late in a background tab; cameBack() checks too
+      if (awayAt && running && S && !S.submitted && Date.now() - awayAt >= AWAY_LIMIT) {
+        var ms = Date.now() - awayAt; awayAt = 0; submitAway(awayWhy, ms);
+      }
+    }, AWAY_LIMIT + 500);
   }
   function cameBack() {
     document.body.classList.remove("away");
+    clearTimeout(awayTimer);
     if (!awayAt) return;
     var away = Date.now() - awayAt; awayAt = 0;
     if (!running || !S || S.submitted) return;
+    if (AWAY_LIMIT > 0 && away >= AWAY_LIMIT) { submitAway(awayWhy, away); return; }
     keepAwake();
     if (away >= GRACE) onLeave(awayWhy + " (" + Math.max(1, Math.round(away / 1000)) + " sec)");
     else { S.shortLeaves = (S.shortLeaves || 0) + 1; save(); }
@@ -1078,15 +1099,17 @@
     LS.set("tp_student", { kelas: s.kelas, name: s.name });
     if (Date.now() >= S.end) { running = true; submit("Time ran out"); return true; }
     var gone = S.unloadAt ? Date.now() - S.unloadAt : Infinity, counted = !(gone <= RELOAD_GRACE);
+    if (AWAY_LIMIT > 0 && isFinite(gone) && gone >= AWAY_LIMIT) { // page was closed for too long
+      delete S.unloadAt; running = true; submitAway("closed the test page", gone); return true;
+    }
     delete S.unloadAt;
     if (counted) S.leaves.push({ at: Date.now(), r: "reloaded / closed the page" + (isFinite(gone) ? " (" + Math.round(gone / 1000) + " sec)" : "") });
     else S.reloads = (S.reloads || 0) + 1; // quick refresh (e.g. accidental swipe on a tablet): noted, not a violation
     save();
-    if (S.leaves.length >= T.maxLeaves) {
-      if (!lockHash()) { running = true; submit("Auto-submitted: left " + S.leaves.length + "x"); return true; }
-      if (counted) S.locked = true; save();
-    }
-    var left = Math.max(0, T.maxLeaves - S.leaves.length);
+    if (!lockHash()) {
+      if (S.leaves.length >= T.maxLeaves) { running = true; submit("Auto-submitted: left " + S.leaves.length + "x"); return true; }
+    } else if (counted && S.leaves.length % T.maxLeaves === 0) { S.locked = true; save(); }
+    var left = nextLockAt(S.leaves.length) - S.leaves.length;
     app.innerHTML = topbar(null) + '<div class="page"><div class="card"><h2>Test in progress</h2>' +
       "<p><b>" + TP.esc(S.name) + "</b> · " + TP.esc(S.kelas) + "<br>" + TP.esc(T.title) + "</p>" +
       (S.locked ? '<div class="banner warn">🔒 The test is locked after ' + S.leaves.length + " violations. Call your teacher to unlock it. The timer keeps running.</div>"

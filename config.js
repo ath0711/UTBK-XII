@@ -168,7 +168,9 @@ window.APP_CONFIG = {
   antiCheat: {
     maxViolations: 3,
     ignoreShorterThanSeconds: 1,
-    reloadGraceSeconds: 10
+    reloadGraceSeconds: 10,
+    /* away from the test (other tab/app, or page closed) this long → answers are submitted automatically. 0 = off */
+    autoSubmitAwayMinutes: 5
   },
 
   /* 4) TESTS shown to students (top = first).
